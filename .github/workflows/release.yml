@@ -1,0 +1,66 @@
+name: Build and Release
+
+# This workflow only triggers when you push a tag that starts with "v" (e.g., v0.1.0)
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    # Crucial: Grants GitHub Actions permission to create a release and upload files
+    permissions:
+      contents: write 
+
+    strategy:
+      matrix:
+        include:
+          # Linux Build
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: stopwatch
+            final_name: linux
+            
+          # Windows Build
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: stopwatch.exe
+            final_name: windows.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxtst-dev
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Release Binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename Binary with Version
+        # We force bash so this step behaves identically on Windows and Linux
+        shell: bash 
+        run: |
+          # Strip 'refs/tags/' from the github ref to get the raw version (e.g., v0.1.0)
+          VERSION=${GITHUB_REF#refs/tags/}
+          
+          # Move and rename the file (e.g., stopwatch-v0.1.0-windows.exe)
+          mv target/${{ matrix.target }}/release/${{ matrix.bin }} stopwatch-${VERSION}-${{ matrix.final_name }}
+
+      - name: Upload to GitHub Release
+        # This action automatically creates the release if it doesn't exist, and attaches the files
+        uses: softprops/action-gh-release@v2
+        with:
+          files: stopwatch-
+          generate_release_notes: true
