@@ -61,6 +61,7 @@ impl eframe::App for StopwatchApp {
         ui.vertical_centered(|ui| {
             ui.add_space(10.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                ui.add_space(5.0);
                 if has_focus && ui.button("🗙").clicked() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
@@ -190,6 +191,7 @@ impl eframe::App for StopwatchApp {
             });
             ui.add_space(15.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                ui.add_space(5.0);
                 ui.allocate_ui(egui::vec2(30.0, 20.0), |ui| {
                     if has_focus && ui.button("👁").clicked() {
                         config.toggle_hide_tap();
