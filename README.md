@@ -1,6 +1,6 @@
 # Phasmoclock 👻⏱️ Global Stopwatch & BPM/Speed Tracker for Phasmophobia
 
-I play phasmo on Linux Steam, needed an overaly clocck... , it also works on windows
+I play phasmo on Linux Steam, needed an overaly clock, did my own. It also works on windows btw.
 
 A lightweight, cross-platform overlay application built in Rust (inspired on phasmo-cheat-sheet by tybayn) . It features a precision stopwatch, a custom BPM-to-Speed (m/s) calculator, and global hardware-level keybinds that work flawlessly regardless of what application has focus.
 
