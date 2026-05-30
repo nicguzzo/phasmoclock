@@ -33,14 +33,6 @@ fn start_input_thread(tx: mpsc::Sender<AppKey>, config: ConfigShared) {
                         //println!("event {:#?}",event);
                         if event.event_type() == EventType::KEY {
                             if event.value() == 1 {
-                                //println!("event {:#?}",event);
-                                //let _=match KeyCode(event.code()) {
-                                //    KeyCode::KEY_Q => tx.send(AppKey::Reset),
-                                //    KeyCode::KEY_GRAVE => tx.send(AppKey::Tap),
-                                //    KeyCode::KEY_F2 => tx.send(AppKey::Mult),
-                                //    KeyCode::KEY_F3 => tx.send(AppKey::Bm),
-                                //   _ => Ok(()),
-                                //};
                                 let incoming_key = event.code();
                                 let config = config.lock().unwrap();
                                 if incoming_key == config.reset_code {
@@ -70,14 +62,6 @@ fn start_input_thread(tx: mpsc::Sender<AppKey>, config: ConfigShared) {
     thread::spawn(move || {
         let _ = listen(move |event| {
             if let EventType::KeyPress(key) = event.event_type {
-                //let _ = match key {
-                //    Key::KeyQ => tx.send(AppKey::Reset),
-                //    Key::BackQuote => tx.send(AppKey::Tap),
-                //    Key::F2 => tx.send(AppKey::Mult),
-                //    Key::F3 => tx.send(AppKey::Bm),
-                //    _ => Ok(()),
-                //};
-
                 use crate::config::rdev_to_win_vk;
 
                 let config = config.lock().unwrap();
@@ -98,11 +82,11 @@ fn start_input_thread(tx: mpsc::Sender<AppKey>, config: ConfigShared) {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let (tx, rx) = mpsc::channel::<AppKey>();
-    let config: ConfigShared = Arc::new(Mutex::new(config::load_config()));
+    let config: ConfigShared = Arc::new(Mutex::new(Config::load_config()));
     start_input_thread(tx, config.clone());
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
-            .with_inner_size([210.0, 150.0])
+            .with_inner_size([210.0, 125.0])
             .with_always_on_top()
             .with_decorations(false),
         ..Default::default()

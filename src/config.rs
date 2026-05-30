@@ -3,9 +3,13 @@ use std::fs;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
+    #[serde(default = "default_reset_str")]
     pub reset_str: String,
+    #[serde(default = "default_tap_str")]
     pub tap_str: String,
+    #[serde(default = "default_cycle_multiplier_str")]
     pub cycle_multiplier_str: String,
+    #[serde(default = "default_blood_moon_str")]
     pub blood_moon_str: String,
     #[serde(skip)]
     pub reset_code: u16,
@@ -15,14 +19,31 @@ pub struct Config {
     pub cycle_multiplier_code: u16,
     #[serde(skip)]
     pub blood_moon_code: u16,
+    #[serde(default)]
+    hide_speeds: bool,
+    #[serde(default)]
+    hide_tap: bool,
+}
+
+fn default_reset_str() -> String {
+    "1".to_string()
+}
+fn default_tap_str() -> String {
+    "2".to_string()
+}
+fn default_cycle_multiplier_str() -> String {
+    "3".to_string()
+}
+fn default_blood_moon_str() -> String {
+    "4".to_string()
 }
 
 impl Default for Config {
     fn default() -> Self {
-        let reset_code = parse_key("Q");
-        let tap_code = parse_key("Grave");
-        let cycle_multiplier_code = parse_key("F2");
-        let blood_moon_code = parse_key("F3");
+        let reset_code = parse_key("1");
+        let tap_code = parse_key("2");
+        let cycle_multiplier_code = parse_key("3");
+        let blood_moon_code = parse_key("4");
         Self {
             reset_str: key_code_to_str(reset_code),
             tap_str: key_code_to_str(tap_code),
@@ -32,31 +53,48 @@ impl Default for Config {
             tap_code,
             cycle_multiplier_code,
             blood_moon_code,
+            hide_speeds: false,
+            hide_tap: false,
         }
     }
 }
 
-pub fn load_config() -> Config {
-    if let Ok(data) = fs::read_to_string("bindings.json") {
-        if let Ok(mut cfg) = serde_json::from_str::<Config>(&data) {
-            cfg.reset_code = parse_key(&cfg.reset_str);
-            cfg.tap_code = parse_key(&cfg.tap_str);
-            cfg.cycle_multiplier_code = parse_key(&cfg.cycle_multiplier_str);
-            cfg.blood_moon_code = parse_key(&cfg.blood_moon_str);
-            return cfg;
-        }
+impl Config {
+    pub fn get_hide_speeds(&self) -> bool {
+        self.hide_speeds
     }
-    Config::default()
-}
+    pub fn get_hide_tap(&self) -> bool {
+        self.hide_tap
+    }
+    pub fn toggle_hide_speeds(&mut self) {
+        self.hide_speeds = !self.hide_speeds;
+        self.save_config();
+    }
+    pub fn toggle_hide_tap(&mut self) {
+        self.hide_tap = !self.hide_tap;
+    }
+    pub fn load_config() -> Config {
+        if let Ok(data) = fs::read_to_string("bindings.json") {
+            if let Ok(mut cfg) = serde_json::from_str::<Config>(&data) {
+                cfg.reset_code = parse_key(&cfg.reset_str);
+                cfg.tap_code = parse_key(&cfg.tap_str);
+                cfg.cycle_multiplier_code = parse_key(&cfg.cycle_multiplier_str);
+                cfg.blood_moon_code = parse_key(&cfg.blood_moon_str);
+                return cfg;
+            }
+        }
+        Config::default()
+    }
 
-pub fn save_config(config: &mut Config) {
-    config.reset_code = parse_key(&config.reset_str);
-    config.tap_code = parse_key(&config.tap_str);
-    config.cycle_multiplier_code = parse_key(&config.cycle_multiplier_str);
-    config.blood_moon_code = parse_key(&config.blood_moon_str);
+    pub fn save_config(&mut self) {
+        self.reset_code = parse_key(&self.reset_str);
+        self.tap_code = parse_key(&self.tap_str);
+        self.cycle_multiplier_code = parse_key(&self.cycle_multiplier_str);
+        self.blood_moon_code = parse_key(&self.blood_moon_str);
 
-    if let Ok(json) = serde_json::to_string_pretty(config) {
-        let _ = fs::write("bindings.json", json);
+        if let Ok(json) = serde_json::to_string_pretty(self) {
+            let _ = fs::write("bindings.json", json);
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::bpm::BpmTracker;
 use crate::stopwatch::Stopwatch;
 use crate::{AppKey, ConfigShared, config};
-use eframe::egui;
+use eframe::egui::{self, RichText};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -19,7 +19,6 @@ pub struct StopwatchApp {
     rx: mpsc::Receiver<AppKey>,
     binding_state: Option<BindingAction>,
     show_settings: bool,
-    hide_speeds: bool,
     config: ConfigShared,
 }
 
@@ -32,7 +31,7 @@ impl StopwatchApp {
         cc.egui_ctx.set_visuals(egui::Visuals::dark());
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
-            "my_clock_font".to_owned(),
+            "clock_font".to_owned(),
             std::sync::Arc::new(egui::FontData::from_static(include_bytes!(
                 "../assets/digital-7 (mono).ttf"
             ))),
@@ -41,7 +40,7 @@ impl StopwatchApp {
             .families
             .entry(egui::FontFamily::Monospace)
             .or_default()
-            .insert(0, "my_clock_font".to_owned());
+            .insert(0, "clock_font".to_owned());
 
         cc.egui_ctx.set_fonts(fonts);
         Self {
@@ -50,7 +49,6 @@ impl StopwatchApp {
             rx,
             binding_state: None,
             show_settings: false,
-            hide_speeds: false,
             config,
         }
     }
@@ -58,32 +56,44 @@ impl StopwatchApp {
 
 impl eframe::App for StopwatchApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let has_focus = ui.ctx().input(|i| i.focused);
+        let mut config = self.config.lock().unwrap();
         ui.vertical_centered(|ui| {
             ui.add_space(10.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                //ui.add_space(ui.available_width() / 2.0 - 100.0);
-
-                if ui.button("🗙").clicked() {
+                if has_focus && ui.button("🗙").clicked() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
-                if ui.button("⚙").clicked() {
-                    self.show_settings = !self.show_settings;
-                    if !self.show_settings {
-                        self.binding_state = None;
+                ui.allocate_ui(egui::vec2(30.0, 20.0), |ui| {
+                    if has_focus && ui.button("👁").clicked() {
+                        config.toggle_hide_speeds();
                     }
-                }
-
-                if !self.hide_speeds {
+                });
+                if !config.get_hide_speeds() {
                     let blood_moon_color = if self.bpm_tracker.is_blood_mode() {
                         egui::Color32::RED
                     } else {
                         egui::Color32::GRAY
                     };
-                    ui.colored_label(blood_moon_color, "🌙");
-                    ui.label(format!("{}%", self.bpm_tracker.get_speed_multiplier()));
-                }
-                if ui.button("👁").clicked() {
-                    self.hide_speeds = !self.hide_speeds;
+                    if ui
+                        .button(RichText::new("🌙").color(blood_moon_color))
+                        .clicked()
+                    {
+                        self.bpm_tracker.toggle_blood_moon();
+                    }
+
+                    let bpm_str = format!("{}%", self.bpm_tracker.get_speed_multiplier());
+                    if ui.button(bpm_str).clicked() {
+                        self.bpm_tracker.cycle_multiplier();
+                    }
+                    if ui.button("⚙").clicked() {
+                        self.show_settings = !self.show_settings;
+                        if !self.show_settings {
+                            self.binding_state = None;
+                        }
+                    }
+                } else {
+                    ui.label(format!(" "));
                 }
             });
             if self.show_settings {
@@ -103,7 +113,7 @@ impl eframe::App for StopwatchApp {
                         });
                         ui.add_space(2.0);
                         {
-                            let config = self.config.lock().unwrap();
+                            //let config = self.config.lock().unwrap();
                             let actions = [
                                 ("Reset Stopwatch", BindingAction::Reset, &config.reset_str),
                                 ("Tap Speed", BindingAction::Tap, &config.tap_str),
@@ -139,7 +149,7 @@ impl eframe::App for StopwatchApp {
             }
             ui.add_space(5.0);
             let last_secs_str = format!(
-                "last: {}.{:03}",
+                "last: {}.{:02}",
                 self.stopwatch.last_seconds, self.stopwatch.last_milliseconds
             );
 
@@ -153,7 +163,14 @@ impl eframe::App for StopwatchApp {
 
             ui.add_space(10.0);
             let secs_str = format!("{}.", self.stopwatch.seconds);
-            let ms_str = format!("{:03}", self.stopwatch.milliseconds);
+            let ms_str = format!("{:02}", self.stopwatch.milliseconds / 10);
+            let color = if self.stopwatch.seconds >= 60 && self.stopwatch.seconds < 90 {
+                egui::Color32::RED
+            } else if self.stopwatch.seconds >= 90 && self.stopwatch.seconds < 180 {
+                egui::Color32::CYAN
+            } else {
+                egui::Color32::GREEN
+            };
             ui.horizontal_top(|ui| {
                 ui.add_space(ui.available_width() / 2.0 - 25.0);
                 ui.label(
@@ -161,25 +178,34 @@ impl eframe::App for StopwatchApp {
                         .size(46.0)
                         .strong()
                         .monospace()
-                        .color(egui::Color32::GREEN),
+                        .color(color),
                 );
                 ui.label(
                     egui::RichText::new(ms_str)
                         .size(22.0)
                         .strong()
                         .monospace()
-                        .color(egui::Color32::GREEN),
+                        .color(color),
                 );
             });
+            ui.add_space(15.0);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                ui.allocate_ui(egui::vec2(30.0, 20.0), |ui| {
+                    if has_focus && ui.button("👁").clicked() {
+                        config.toggle_hide_tap();
+                    }
+                });
+                if !config.get_hide_tap() {
+                    let (bpm, speed_ms) = self.bpm_tracker.calculate();
+                    ui.label(
+                        egui::RichText::new(format!("{:>5.1} BPM | {:>4.2} m/s", bpm, speed_ms))
+                            .size(20.0)
+                            .monospace()
+                            .color(egui::Color32::YELLOW),
+                    );
+                }
+            });
         });
-        ui.add_space(15.0);
-        let (bpm, speed_ms) = self.bpm_tracker.calculate();
-        ui.label(
-            egui::RichText::new(format!("{:>5.1} BPM  |  {:>4.2} m/s", bpm, speed_ms))
-                .size(20.0)
-                .monospace()
-                .color(egui::Color32::YELLOW),
-        );
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -216,7 +242,7 @@ impl eframe::App for StopwatchApp {
                     BindingAction::BloodMoon => config.blood_moon_str = key_name,
                 }
 
-                config::save_config(&mut config);
+                config.save_config();
                 self.binding_state = None; // Reset state
             }
         } else {
