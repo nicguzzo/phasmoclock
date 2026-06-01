@@ -1,5 +1,6 @@
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
@@ -73,14 +74,27 @@ impl Config {
     pub fn toggle_hide_tap(&mut self) {
         self.hide_tap = !self.hide_tap;
     }
+    fn get_config_path() -> Option<PathBuf> {
+        if let Some(proj_dirs) = ProjectDirs::from("", "", "phasmoclock") {
+            let config_dir = proj_dirs.config_dir();
+            if !config_dir.exists() {
+                let _ = fs::create_dir_all(config_dir);
+            }
+            Some(config_dir.join("bindings.json"))
+        } else {
+            None // Fallback if the OS doesn't have a valid home directory
+        }
+    }
     pub fn load_config() -> Config {
-        if let Ok(data) = fs::read_to_string("bindings.json") {
-            if let Ok(mut cfg) = serde_json::from_str::<Config>(&data) {
-                cfg.reset_code = parse_key(&cfg.reset_str);
-                cfg.tap_code = parse_key(&cfg.tap_str);
-                cfg.cycle_multiplier_code = parse_key(&cfg.cycle_multiplier_str);
-                cfg.blood_moon_code = parse_key(&cfg.blood_moon_str);
-                return cfg;
+        if let Some(path) = Config::get_config_path() {
+            if let Ok(data) = fs::read_to_string(&path) {
+                if let Ok(mut cfg) = serde_json::from_str::<Config>(&data) {
+                    cfg.reset_code = parse_key(&cfg.reset_str);
+                    cfg.tap_code = parse_key(&cfg.tap_str);
+                    cfg.cycle_multiplier_code = parse_key(&cfg.cycle_multiplier_str);
+                    cfg.blood_moon_code = parse_key(&cfg.blood_moon_str);
+                    return cfg;
+                }
             }
         }
         Config::default()
@@ -92,8 +106,10 @@ impl Config {
         self.cycle_multiplier_code = parse_key(&self.cycle_multiplier_str);
         self.blood_moon_code = parse_key(&self.blood_moon_str);
 
-        if let Ok(json) = serde_json::to_string_pretty(self) {
-            let _ = fs::write("bindings.json", json);
+        if let Some(path) = Config::get_config_path() {
+            if let Ok(json) = serde_json::to_string_pretty(self) {
+                let _ = fs::write(path, json);
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::bpm::BpmTracker;
 use crate::stopwatch::Stopwatch;
-use crate::{AppKey, ConfigShared, config};
+use crate::{AppKey, ConfigShared};
 use eframe::egui::{self, RichText};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -91,6 +91,10 @@ impl eframe::App for StopwatchApp {
                         self.show_settings = !self.show_settings;
                         if !self.show_settings {
                             self.binding_state = None;
+                        } else {
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::InnerSize(
+                                egui::vec2(210.0, 150.0),
+                            ));
                         }
                     }
                 } else {
@@ -110,6 +114,9 @@ impl eframe::App for StopwatchApp {
                             if ui.button("🗙").clicked() {
                                 self.show_settings = false;
                                 self.binding_state = None;
+                                ui.ctx().send_viewport_cmd(egui::ViewportCommand::InnerSize(
+                                    egui::vec2(210.0, 125.0),
+                                ));
                             }
                         });
                         ui.add_space(2.0);
@@ -151,7 +158,8 @@ impl eframe::App for StopwatchApp {
             ui.add_space(5.0);
             let last_secs_str = format!(
                 "last: {}.{:02}",
-                self.stopwatch.last_seconds, self.stopwatch.last_milliseconds
+                self.stopwatch.last_seconds,
+                self.stopwatch.last_milliseconds / 10
             );
 
             ui.label(

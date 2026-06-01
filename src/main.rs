@@ -84,15 +84,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (tx, rx) = mpsc::channel::<AppKey>();
     let config: ConfigShared = Arc::new(Mutex::new(Config::load_config()));
     start_input_thread(tx, config.clone());
+
+    let icon_data = include_bytes!("../assets/icon.png");
+    let image = image::load_from_memory(icon_data)
+        .expect("Failed to load icon")
+        .to_rgba8();
+
+    let (width, height) = image.dimensions();
+    let egui_icon = eframe::egui::IconData {
+        rgba: image.into_raw(),
+        width,
+        height,
+    };
+
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_inner_size([210.0, 125.0])
             .with_always_on_top()
-            .with_decorations(false),
+            .with_decorations(false)
+            .with_icon(Arc::new(egui_icon)),
         ..Default::default()
     };
     eframe::run_native(
-        "Stopwatch Overlay",
+        "Phasmoclock",
         options,
         Box::new(|cc| Ok(Box::new(StopwatchApp::new(cc, rx, config.clone())))),
     )

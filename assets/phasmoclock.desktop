@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Phasmoclock
+Comment=BPM Tracker and Stopwatch
+Exec=/opt/phasmoclock/phasmoclock
+Icon=/opt/phasmoclock/assets/icon.png
+Terminal=false
+Categories=Utility;
+StartupWMClass=Phasmoclock
