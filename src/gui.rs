@@ -55,8 +55,22 @@ impl StopwatchApp {
 }
 
 impl eframe::App for StopwatchApp {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        [0.0, 0.0, 0.0, 0.0]
+    }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let has_focus = ui.ctx().input(|i| i.focused);
+        /*if let Some(render_state) = _frame.wgpu_render_state() {
+            let info = render_state.adapter.get_info();
+            ui.horizontal(|ui| {
+                ui.label("Graphics Backend:");
+                ui.label(
+                    egui::RichText::new(format!("{:?}", info.backend))
+                        .strong()
+                        .color(egui::Color32::LIGHT_BLUE),
+                );
+            });
+        }*/
         let mut config = self.config.lock().unwrap();
         ui.vertical_centered(|ui| {
             ui.add_space(10.0);
@@ -273,6 +287,26 @@ impl eframe::App for StopwatchApp {
                     }
                 }
             }
+            ctx.input(|i| {
+                let config = self.config.lock().unwrap();
+                for event in &i.events {
+                    if let egui::Event::Key {
+                        key, pressed: true, ..
+                    } = event
+                    {
+                        let key = key.name();
+                        if key == config.reset_str {
+                            self.stopwatch.reset();
+                        } else if key == config.tap_str {
+                            self.bpm_tracker.tap();
+                        } else if key == config.cycle_multiplier_str {
+                            self.bpm_tracker.cycle_multiplier();
+                        } else if key == config.blood_moon_str {
+                            self.bpm_tracker.toggle_blood_moon();
+                        }
+                    }
+                }
+            });
         }
         self.stopwatch.tick();
         self.bpm_tracker.tick();

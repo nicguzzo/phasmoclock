@@ -1,3 +1,4 @@
+//#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 mod bpm;
 mod config;
 mod gui;
@@ -66,6 +67,7 @@ fn start_input_thread(tx: mpsc::Sender<AppKey>, config: ConfigShared) {
 
                 let config = config.lock().unwrap();
                 let key = rdev_to_win_vk(key);
+                //println!("key {}", key);
                 if key == config.reset_code {
                     let _ = tx.send(AppKey::Reset);
                 } else if key == config.tap_code {
@@ -97,14 +99,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         height,
     };
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_inner_size([210.0, 125.0])
+            .with_transparent(true)
             .with_always_on_top()
             .with_decorations(false)
             .with_icon(Arc::new(egui_icon)),
         ..Default::default()
     };
+
     eframe::run_native(
         "Phasmoclock",
         options,
