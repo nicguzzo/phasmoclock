@@ -4,11 +4,13 @@ version = "0.1.1"
 edition = "2024"
 
 [dependencies]
-eframe = "0.34.2"
+#eframe = "0.34.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 image = { version = "0.24", default-features = false, features = ["png"] }
 directories = "5.0"
+anyhow = "1.0.102"
+gpui = "0.2.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # These will only compile when building for Linux

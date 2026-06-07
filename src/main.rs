@@ -4,12 +4,18 @@ mod config;
 mod gui;
 mod stopwatch;
 
+use gpui::{
+    App, Application, Bounds, Context, SharedString, Window, WindowBounds, WindowOptions, div,
+    prelude::*, px, rgb, rgba, size,
+};
+
 use crate::config::Config;
 use gui::StopwatchApp;
 use std::error::Error;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
+#[derive(Debug)]
 pub enum AppKey {
     Reset,
     Tap,
@@ -31,7 +37,7 @@ fn start_input_thread(tx: mpsc::Sender<AppKey>, config: ConfigShared) {
             loop {
                 if let Ok(events) = device.fetch_events() {
                     for event in events {
-                        //println!("event {:#?}",event);
+                        //println!("event {:#?}", event);
                         if event.event_type() == EventType::KEY {
                             if event.value() == 1 {
                                 let incoming_key = event.code();
@@ -82,7 +88,7 @@ fn start_input_thread(tx: mpsc::Sender<AppKey>, config: ConfigShared) {
     });
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let (tx, rx) = mpsc::channel::<AppKey>();
     let config: ConfigShared = Arc::new(Mutex::new(Config::load_config()));
     start_input_thread(tx, config.clone());
@@ -92,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .expect("Failed to load icon")
         .to_rgba8();
 
-    let (width, height) = image.dimensions();
+    /*let (width, height) = image.dimensions();
     let egui_icon = eframe::egui::IconData {
         rgba: image.into_raw(),
         width,
@@ -114,5 +120,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         options,
         Box::new(|cc| Ok(Box::new(StopwatchApp::new(cc, rx, config.clone())))),
     )
-    .map_err(|e| Box::new(e) as Box<dyn Error>)
+    .map_err(|e| Box::new(e) as Box<dyn Error>)*/
+    Application::new().run(move |cx: &mut App| {
+        let bounds = Bounds::centered(None, size(px(210.0), px(125.0)), cx);
+        let window_options = WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            window_background: gpui::WindowBackgroundAppearance::Transparent,
+            ..Default::default()
+        };
+        cx.spawn(async move |cx| {
+            cx.open_window(window_options, |window, cx| {
+                let view = StopwatchApp::view(window, cx, rx, config.clone());
+                view
+            })?;
+            Ok::<_, anyhow::Error>(())
+        })
+        .detach();
+        //cx.open_window(
+        //    ,
+        //    |_, cx| cx.new(|_| StopwatchApp::new(cx, rx, config.clone())),
+        //)
+        //.unwrap();
+    });
 }

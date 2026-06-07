@@ -1,8 +1,13 @@
-use crate::bpm::BpmTracker;
-use crate::stopwatch::Stopwatch;
+use crate::bpm::{self, BpmTracker};
+use crate::stopwatch::{self, Stopwatch};
 use crate::{AppKey, ConfigShared};
-use eframe::egui::{self, RichText};
-use std::sync::mpsc;
+//use eframe::egui::{self, RichText};
+use gpui::{
+    App, Application, AsyncApp, Bounds, Context, Entity, SharedString, WeakEntity, Window,
+    WindowBounds, WindowOptions, div, prelude::*, px, rgb, rgba, size,
+};
+use std::sync::{Arc, Mutex, RwLock, mpsc};
+use std::thread::sleep;
 use std::time::Duration;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -14,21 +19,31 @@ enum BindingAction {
 }
 
 pub struct StopwatchApp {
-    stopwatch: Stopwatch,
-    bpm_tracker: BpmTracker,
-    rx: mpsc::Receiver<AppKey>,
+    stopwatch: Arc<RwLock<Stopwatch>>,
+    bpm_tracker: Arc<RwLock<BpmTracker>>,
+    //rx: mpsc::Receiver<AppKey>,
     binding_state: Option<BindingAction>,
     show_settings: bool,
     config: ConfigShared,
 }
 
 impl StopwatchApp {
+    pub fn view(
+        window: &mut Window,
+        cx: &mut App,
+        rx: mpsc::Receiver<AppKey>,
+        config: ConfigShared,
+    ) -> Entity<StopwatchApp> {
+        cx.new(|cx| StopwatchApp::new(window, cx, rx, config))
+    }
     pub fn new(
-        cc: &eframe::CreationContext<'_>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
         rx: mpsc::Receiver<AppKey>,
         config: ConfigShared,
     ) -> Self {
-        cc.egui_ctx.set_visuals(egui::Visuals::dark());
+        //pub fn new(cx: &mut Context<App>, rx: mpsc::Receiver<AppKey>, config: ConfigShared) -> Self {
+        /*cc.egui_ctx.set_visuals(egui::Visuals::dark());
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             "clock_font".to_owned(),
@@ -43,34 +58,101 @@ impl StopwatchApp {
             .insert(0, "clock_font".to_owned());
 
         cc.egui_ctx.set_fonts(fonts);
+        */
+        //cx.background_executor().spawn(Self::update(cx)).detach();
+        //cx.spawn(async move |this, cx| {
+        //    Self::update(this, cx).await;
+        //})
+        //.detach();
+        //
+        let stopwatch = Arc::new(RwLock::new(Stopwatch::new()));
+        let bpm_tracker = Arc::new(RwLock::new(BpmTracker::new()));
+        cx.background_executor()
+            .spawn(Self::test_loop(stopwatch.clone(), bpm_tracker.clone(), rx))
+            .detach();
+
         Self {
-            stopwatch: Stopwatch::new(),
-            bpm_tracker: BpmTracker::new(),
-            rx,
+            stopwatch,
+            bpm_tracker,
+            //stopwatch: Stopwatch::new(),
+            //bpm_tracker: BpmTracker::new(),
+            //rx,
             binding_state: None,
             show_settings: false,
             config,
         }
     }
+    pub async fn test_loop(
+        stopwatch: Arc<RwLock<Stopwatch>>,
+        bpm_tracker: Arc<RwLock<BpmTracker>>,
+        rx: mpsc::Receiver<AppKey>,
+    ) {
+        //let mut stopwatch = Stopwatch::new();
+        //let mut bpm_tracker = BpmTracker::new();
+        loop {
+            {
+                let mut stopwatch = stopwatch.write().unwrap();
+                let mut bpm_tracker = bpm_tracker.write().unwrap();
+                while let Ok(key) = rx.try_recv() {
+                    println!("keycode: {:#?}", key);
+                    match key {
+                        AppKey::Reset => {
+                            stopwatch.reset();
+                        }
+                        AppKey::Tap => {
+                            bpm_tracker.tap();
+                        }
+                        AppKey::Mult => {
+                            bpm_tracker.cycle_multiplier();
+                        }
+                        AppKey::Bm => {
+                            bpm_tracker.toggle_blood_moon();
+                        }
+                    }
+                }
+                stopwatch.tick();
+                bpm_tracker.tick();
+                println!("ticking2!! {}", stopwatch.seconds);
+            }
+            sleep(Duration::from_millis(100));
+        }
+    }
 }
 
+impl Render for StopwatchApp {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let secs_str = {
+            let stopwatch = self.stopwatch.read().unwrap();
+            //let mut bpm_tracker = bpm_tracker.lock().unwrap();
+            format!("{}.", stopwatch.seconds)
+            //let ms_str = format!("{:02}", self.stopwatch.milliseconds / 10);
+        };
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .bg(rgba(0x20505050))
+            //.size(px(500.0))
+            .justify_center()
+            .items_center()
+            .shadow_lg()
+            .border_1()
+            .border_color(rgb(0x0000ff))
+            .text_xl()
+            .text_color(rgb(0xffffff))
+            .child(secs_str)
+    }
+
+    //pub fn parse_key(key: Key) -> u16 {}
+}
+/*
 impl eframe::App for StopwatchApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         [0.0, 0.0, 0.0, 0.0]
     }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let has_focus = ui.ctx().input(|i| i.focused);
-        /*if let Some(render_state) = _frame.wgpu_render_state() {
-            let info = render_state.adapter.get_info();
-            ui.horizontal(|ui| {
-                ui.label("Graphics Backend:");
-                ui.label(
-                    egui::RichText::new(format!("{:?}", info.backend))
-                        .strong()
-                        .color(egui::Color32::LIGHT_BLUE),
-                );
-            });
-        }*/
+
         let mut config = self.config.lock().unwrap();
         ui.vertical_centered(|ui| {
             ui.add_space(10.0);
@@ -314,3 +396,4 @@ impl eframe::App for StopwatchApp {
     }
     //pub fn parse_key(key: Key) -> u16 {}
 }
+*/
