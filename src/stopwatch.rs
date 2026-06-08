@@ -68,7 +68,7 @@ impl Stopwatch {
         self.minute = (minutes % 60) as u16;
         self.hour = (hours as u16) % 24;
         self.current_time = Instant::now();
-        println!("ticking!! {}", self.seconds);
+        //println!("ticking!! {}", self.seconds);
     }
     //pub fn format(&self)->String{
     //    //format!("{:0width$}:{:0width$}:{:0width$} - {}", self.hour, self.minute, self.second, self.seconds, width = 2)
