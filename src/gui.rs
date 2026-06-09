@@ -125,6 +125,8 @@ impl StopwatchApp {
 
 impl Render for StopwatchApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let bpm_tracker_entity = self.bpm_tracker.clone();
+        let bpm_tracker_entity2 = self.bpm_tracker.clone();
         let stopwatch = self.stopwatch.read(cx);
         let bpm_tracker = self.bpm_tracker.read(cx);
         let blood_moon_color = if bpm_tracker.is_blood_mode() {
@@ -132,13 +134,23 @@ impl Render for StopwatchApp {
         } else {
             rgb(0x666666)
         };
+        //let config=self.config.lock().unwrap();
+        let speed_multiplier = format!("{}%", bpm_tracker.get_speed_multiplier());
 
         let secs_str = format!(
             "{}.{:02}",
             stopwatch.seconds as u64,
             stopwatch.milliseconds / 10
         );
-        let bpm_str = format!("Speed {:02}", bpm_tracker.speed_ms);
+        let bpm_str = format!("Speed {:>4.2} m/s", bpm_tracker.speed_ms);
+
+        let btn1 = ButtonCustomVariant::new(cx)
+            .color(rgb(0x111111).into())
+            .foreground(rgb(0xffffff).into())
+            .border(rgb(0x0).into())
+            .shadow(false)
+            .hover(rgb(0x222222).into())
+            .active(rgb(0xffffff).into());
 
         div()
             .size_full()
@@ -146,6 +158,8 @@ impl Render for StopwatchApp {
             .h_full()
             .flex()
             .flex_col()
+            .m_0()
+            .p_0()
             //.bg(rgb(0xff0000))
             //.bg(rgba(0x00000000))
             //.justify_center()
@@ -155,13 +169,26 @@ impl Render for StopwatchApp {
                     .w_full()
                     .justify_end()
                     .child(
-                        //Icon::new(IconName::Heart).text_color(cx.theme().red)
+                        Button::new("speed_multiplier")
+                            .custom(btn1)
+                            .label(speed_multiplier)
+                            .on_click(move |_event, _window, cx| {
+                                bpm_tracker_entity.update(cx, |bpm_tracker, cx| {
+                                    bpm_tracker.cycle_multiplier();
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .child(
                         Button::new("blood_moon")
                             .primary()
+                            .size_16()
                             .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
-                            .on_click(|_event, _window, app| {
-                                //let bpm_tracker =self.bpm_tracker.write(cx, value)
-                                //bpm_tracker.toggle_blood_moon();
+                            .on_click(move |_event, _window, cx| {
+                                bpm_tracker_entity2.update(cx, |bpm_tracker, cx| {
+                                    bpm_tracker.toggle_blood_moon();
+                                    cx.notify();
+                                });
                             }),
                     )
                     .child(div().w_full().on_mouse_down(
@@ -179,6 +206,8 @@ impl Render for StopwatchApp {
             )
             .child(
                 div()
+                    .m_0()
+                    .p_0()
                     .w_full()
                     .flex()
                     .flex_col()
@@ -186,13 +215,17 @@ impl Render for StopwatchApp {
                     .font_family("Digital-7 Mono")
                     .child(
                         div()
+                            .m_0()
+                            .p_0()
                             .text_size(px(100.0))
                             .text_color(rgb(0x00ff00))
                             .child(secs_str),
                     )
                     .child(
                         div()
-                            .text_size(px(60.0))
+                            .m_0()
+                            .p_0()
+                            .text_size(px(40.0))
                             .text_color(rgb(0xffff00))
                             .child(bpm_str),
                     )
