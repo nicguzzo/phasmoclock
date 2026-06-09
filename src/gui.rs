@@ -313,13 +313,13 @@ impl Render for StopwatchApp {
         );
         let bpm_str = format!("Speed {:>4.2} m/s", bpm_tracker.speed_ms);
 
-        let btn1 = ButtonCustomVariant::new(cx)
-            .color(rgb(0x111111).into())
-            .foreground(rgb(0xffffff).into())
-            .border(rgb(0x0).into())
-            .shadow(false)
-            .hover(rgb(0x222222).into())
-            .active(rgb(0xffffff).into());
+        let color = if stopwatch.seconds >= 60 && stopwatch.seconds < 90 {
+            rgb(0xff0000)
+        } else if stopwatch.seconds >= 90 && stopwatch.seconds < 180 {
+            rgb(0x00ffff)
+        } else {
+            rgb(0x00ff00)
+        };
 
         div()
             .size_full()
@@ -448,7 +448,7 @@ impl Render for StopwatchApp {
                                     .pt(px(3.0 * size))
                                     .line_height(gpui::relative(0.8))
                                     .text_size(px(100.0 * size))
-                                    .text_color(rgb(0x00ff00))
+                                    .text_color(color)
                                     .child(secs_str),
                             )
                             .child(
