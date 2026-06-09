@@ -135,12 +135,17 @@ impl Render for StopwatchApp {
             rgb(0x666666)
         };
         //let config=self.config.lock().unwrap();
-        let speed_multiplier = format!("{}%", bpm_tracker.get_speed_multiplier());
+        let speed_multiplier = format!("{:03}%", bpm_tracker.get_speed_multiplier());
 
         let secs_str = format!(
             "{}.{:02}",
             stopwatch.seconds as u64,
             stopwatch.milliseconds / 10
+        );
+        let last_secs_str = format!(
+            "last: {}.{:02}",
+            stopwatch.last_seconds,
+            stopwatch.last_milliseconds / 10
         );
         let bpm_str = format!("Speed {:>4.2} m/s", bpm_tracker.speed_ms);
 
@@ -165,13 +170,21 @@ impl Render for StopwatchApp {
             //.justify_center()
             .child(
                 div()
+                    .p_2()
                     .flex()
                     .w_full()
                     .justify_end()
                     .child(
                         Button::new("speed_multiplier")
-                            .custom(btn1)
-                            .label(speed_multiplier)
+                            //.custom(btn1)
+                            .primary()
+                            .large()
+                            .child(
+                                div()
+                                    .font_family("Digital-7 Mono")
+                                    .text_size(px(32.0))
+                                    .child(speed_multiplier),
+                            )
                             .on_click(move |_event, _window, cx| {
                                 bpm_tracker_entity.update(cx, |bpm_tracker, cx| {
                                     bpm_tracker.cycle_multiplier();
@@ -182,7 +195,7 @@ impl Render for StopwatchApp {
                     .child(
                         Button::new("blood_moon")
                             .primary()
-                            .size_16()
+                            .large()
                             .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
                             .on_click(move |_event, _window, cx| {
                                 bpm_tracker_entity2.update(cx, |bpm_tracker, cx| {
@@ -208,11 +221,22 @@ impl Render for StopwatchApp {
                 div()
                     .m_0()
                     .p_0()
-                    .w_full()
+                    .gap_0()
+                    //.w_full()
+                    .size_full()
                     .flex()
                     .flex_col()
+                    .justify_start()
                     .items_center()
                     .font_family("Digital-7 Mono")
+                    .child(
+                        div()
+                            .m_0()
+                            .p_0()
+                            .text_size(px(40.0))
+                            .text_color(rgb(0x00ffff))
+                            .child(last_secs_str),
+                    )
                     .child(
                         div()
                             .m_0()
