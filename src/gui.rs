@@ -2,10 +2,12 @@ use crate::bpm::BpmTracker;
 use crate::stopwatch::Stopwatch;
 use crate::{AppKey, ConfigShared};
 
+use gpui::colors::Colors;
 use gpui::{
     AbsoluteLength, App, AsyncApp, Context, Div, DragMoveEvent, Entity, Pixels, Render,
-    Subscription, WeakEntity, Window, div, prelude::*, px, rgb, rgba,
+    Subscription, WeakEntity, Window, div, prelude::*, px, rgb, rgba, size,
 };
+use gpui_component::ColorName::Red;
 use gpui_component::{button::*, *};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -123,33 +125,52 @@ impl StopwatchApp {
 
 impl Render for StopwatchApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (secs_str, bpm_str) = {
-            let stopwatch = self.stopwatch.read(cx);
-            let bpm_tracker = self.bpm_tracker.read(cx);
-
-            (
-                format!(
-                    "{}.{:02}",
-                    stopwatch.seconds as u64,
-                    stopwatch.milliseconds / 10
-                ),
-                format!("{:02}", bpm_tracker.speed_ms),
-            )
+        let stopwatch = self.stopwatch.read(cx);
+        let bpm_tracker = self.bpm_tracker.read(cx);
+        let blood_moon_color = if bpm_tracker.is_blood_mode() {
+            rgb(0xff0000)
+        } else {
+            rgb(0x666666)
         };
+
+        let secs_str = format!(
+            "{}.{:02}",
+            stopwatch.seconds as u64,
+            stopwatch.milliseconds / 10
+        );
+        let bpm_str = format!("Speed {:02}", bpm_tracker.speed_ms);
+
         div()
+            .size_full()
+            .w_full()
+            .h_full()
             .flex()
             .flex_col()
-            .gap_3()
-            .bg(rgba(0x00000000))
-            .justify_center()
-            .items_center()
+            //.bg(rgb(0xff0000))
+            //.bg(rgba(0x00000000))
+            //.justify_center()
             .child(
                 div()
-                    .flex_1()
+                    .flex()
                     .w_full()
                     .justify_end()
-                    .items_end()
-                    .child(div().flex_1().w_full())
+                    .child(
+                        //Icon::new(IconName::Heart).text_color(cx.theme().red)
+                        Button::new("blood_moon")
+                            .primary()
+                            .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
+                            .on_click(|_event, _window, app| {
+                                //let bpm_tracker =self.bpm_tracker.write(cx, value)
+                                //bpm_tracker.toggle_blood_moon();
+                            }),
+                    )
+                    .child(div().w_full().on_mouse_down(
+                        gpui::MouseButton::Left,
+                        |_event, window, _app| {
+                            //println!("on_mouse_down");
+                            window.start_window_move();
+                        },
+                    ))
                     .child(Button::new("close").primary().label("🗙").on_click(
                         |_event, _window, app| {
                             app.quit();
@@ -158,6 +179,10 @@ impl Render for StopwatchApp {
             )
             .child(
                 div()
+                    .w_full()
+                    .flex()
+                    .flex_col()
+                    .items_center()
                     .font_family("Digital-7 Mono")
                     .child(
                         div()

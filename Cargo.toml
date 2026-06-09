@@ -12,6 +12,8 @@ directories = "5.0"
 anyhow = "1.0.102"
 gpui = "0.2.2"
 gpui-component = "0.5.1"
+gpui-component-assets = "0.5.1"
+rust-embed = "8.11.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # These will only compile when building for Linux
