@@ -134,7 +134,10 @@ impl Render for StopwatchApp {
         } else {
             rgb(0x666666)
         };
-        //let config=self.config.lock().unwrap();
+        let size = {
+            let config = self.config.lock().unwrap();
+            config.size
+        };
         let speed_multiplier = format!("{:03}%", bpm_tracker.get_speed_multiplier());
 
         let secs_str = format!(
@@ -178,11 +181,11 @@ impl Render for StopwatchApp {
                         Button::new("speed_multiplier")
                             //.custom(btn1)
                             .primary()
-                            .large()
+                            .size(px(32.0 * size))
                             .child(
                                 div()
                                     .font_family("Digital-7 Mono")
-                                    .text_size(px(32.0))
+                                    .text_size(px(32.0 * size))
                                     .child(speed_multiplier),
                             )
                             .on_click(move |_event, _window, cx| {
@@ -195,7 +198,7 @@ impl Render for StopwatchApp {
                     .child(
                         Button::new("blood_moon")
                             .primary()
-                            .large()
+                            .size(px(32.0 * size))
                             .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
                             .on_click(move |_event, _window, cx| {
                                 bpm_tracker_entity2.update(cx, |bpm_tracker, cx| {
@@ -233,7 +236,9 @@ impl Render for StopwatchApp {
                         div()
                             .m_0()
                             .p_0()
-                            .text_size(px(40.0))
+                            .pt_3()
+                            .line_height(gpui::relative(0.8))
+                            .text_size(px(40.0 * size))
                             .text_color(rgb(0x00ffff))
                             .child(last_secs_str),
                     )
@@ -241,7 +246,9 @@ impl Render for StopwatchApp {
                         div()
                             .m_0()
                             .p_0()
-                            .text_size(px(100.0))
+                            .pt_3()
+                            .line_height(gpui::relative(0.8))
+                            .text_size(px(100.0 * size))
                             .text_color(rgb(0x00ff00))
                             .child(secs_str),
                     )
@@ -249,7 +256,7 @@ impl Render for StopwatchApp {
                         div()
                             .m_0()
                             .p_0()
-                            .text_size(px(40.0))
+                            .text_size(px(40.0 * size))
                             .text_color(rgb(0xffff00))
                             .child(bpm_str),
                     )

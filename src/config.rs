@@ -20,6 +20,8 @@ pub struct Config {
     pub cycle_multiplier_code: u16,
     #[serde(skip)]
     pub blood_moon_code: u16,
+    #[serde(default = "default_size")]
+    pub size: f32,
     #[serde(default)]
     hide_speeds: bool,
     #[serde(default)]
@@ -37,6 +39,9 @@ fn default_cycle_multiplier_str() -> String {
 }
 fn default_blood_moon_str() -> String {
     "4".to_string()
+}
+fn default_size() -> f32 {
+    1.0
 }
 
 impl Default for Config {
@@ -56,6 +61,7 @@ impl Default for Config {
             blood_moon_code,
             hide_speeds: false,
             hide_tap: false,
+            size: 1.0,
         }
     }
 }
