@@ -36,6 +36,12 @@ pub struct Config {
     hide_tap: bool,
     #[serde(default = "default_font_str")]
     pub font: String,
+    #[serde(default = "default_opacity")]
+    pub opacity: f32,
+}
+
+fn default_opacity() -> f32 {
+    1.0
 }
 
 fn default_font_str() -> String {
@@ -76,6 +82,7 @@ impl Default for Config {
             hide_speeds: false,
             hide_tap: false,
             font: "Digital-7 Mono".to_string(),
+            opacity: 1.0,
             size: 1.0,
             window_x: None,
             window_y: None,

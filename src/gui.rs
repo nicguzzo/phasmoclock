@@ -27,6 +27,7 @@ pub struct StopwatchApp {
     show_settings: bool,
     config: ConfigShared,
     size_input: Entity<gpui_component::input::InputState>,
+    opacity_input: Entity<gpui_component::input::InputState>,
     font_select:
         Entity<gpui_component::select::SelectState<gpui_component::select::SearchableVec<String>>>,
     settings_focus: FocusHandle,
@@ -146,6 +147,62 @@ impl StopwatchApp {
             },
         ));
 
+        let opacity_input = cx.new(|cx| {
+            let mut state = gpui_component::input::InputState::new(window, cx);
+            let opacity = config.lock().unwrap().opacity;
+            state.set_value(format!("{:.2}", opacity), window, cx);
+            state
+        });
+
+        let config_clone_op = config.clone();
+        let window_handle_op = window_handle.clone();
+        _subscriptions.push(cx.subscribe(
+            &opacity_input,
+            move |_this, opacity_input, event: &gpui_component::input::NumberInputEvent, cx| {
+                if let gpui_component::input::NumberInputEvent::Step(action) = event {
+                    let mut config = config_clone_op.lock().unwrap();
+                    match action {
+                        gpui_component::input::StepAction::Increment => {
+                            config.opacity = (config.opacity + 0.1).min(1.0);
+                        }
+                        gpui_component::input::StepAction::Decrement => {
+                            config.opacity = (config.opacity - 0.1).max(0.0);
+                        }
+                    }
+                    config.save_config();
+                    let new_opacity = config.opacity;
+                    let opacity_input = opacity_input.clone();
+                    cx.defer(move |cx| {
+                        window_handle_op
+                            .update(cx, move |_, window, cx| {
+                                opacity_input.update(cx, |input, cx| {
+                                    input.set_value(format!("{:.2}", new_opacity), window, cx);
+                                });
+                            })
+                            .ok();
+                    });
+                    cx.notify();
+                }
+            },
+        ));
+
+        let config_clone_op2 = config.clone();
+        _subscriptions.push(cx.subscribe(
+            &opacity_input,
+            move |_this, opacity_input, event: &gpui_component::input::InputEvent, cx| {
+                if let gpui_component::input::InputEvent::Change = event {
+                    let text = opacity_input.read(cx).value().to_string();
+                    if let Ok(val) = text.parse::<f32>() {
+                        let mut config = config_clone_op2.lock().unwrap();
+                        let clamped = val.clamp(0.0, 1.0);
+                        config.opacity = clamped;
+                        config.save_config();
+                    }
+                    cx.notify();
+                }
+            },
+        ));
+
         let stopwatch_clone = stopwatch.clone();
         let bpm_tracker_clone = bpm_tracker.clone();
 
@@ -259,6 +316,7 @@ impl StopwatchApp {
             show_settings: false,
             config,
             size_input,
+            opacity_input,
             font_select,
             settings_focus,
             last_bounds: None,
@@ -295,9 +353,9 @@ impl Render for StopwatchApp {
         } else {
             rgb(0x666666)
         };
-        let (size, font_family_name) = {
+        let (size, font_family_name, opacity) = {
             let config = self.config.lock().unwrap();
-            (config.size, config.font.clone())
+            (config.size, config.font.clone(), config.opacity)
         };
         let speed_multiplier = format!("{:03}%", bpm_tracker.get_speed_multiplier());
 
@@ -335,9 +393,7 @@ impl Render for StopwatchApp {
                     .h_full()
                     .flex()
                     .flex_col()
-                    //.bg(rgb(0xff0000))
-                    //.bg(rgba(0x00000000))
-                    //.justify_center()
+                    .bg(gpui::black().alpha(opacity))
                     .child(
                         div()
                             .p_2()
@@ -534,9 +590,23 @@ impl Render for StopwatchApp {
                             .child(gpui_component::select::Select::new(&self.font_select)),
                     );
 
+                let opacity_controls = div()
+                    .flex()
+                    .w_full()
+                    .justify_between()
+                    .items_center()
+                    .child(div().text_color(rgb(0xffffff)).child("Opacity"))
+                    .child(
+                        div()
+                            .w(px(140.))
+                            .child(gpui_component::input::NumberInput::new(&self.opacity_input)),
+                    );
+
                 actions_div = actions_div
                     .child(div().h(px(10.)))
                     .child(size_controls)
+                    .child(div().h(px(10.)))
+                    .child(opacity_controls)
                     .child(div().h(px(10.)))
                     .child(font_controls);
 

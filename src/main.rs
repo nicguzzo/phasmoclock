@@ -139,6 +139,7 @@ fn main() {
         // Force dark theme
         use gpui_component::theme::{Theme, ThemeMode};
         Theme::change(ThemeMode::Dark, None, cx);
+        cx.global_mut::<Theme>().background = gpui::transparent_black();
 
         let (w, h, window_x, window_y) = {
             let config = config.lock().unwrap();
