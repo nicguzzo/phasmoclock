@@ -2,10 +2,10 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
-pub const WINDOW_WIDTH: f32 = 320.0;
+pub const WINDOW_WIDTH: f32 = 360.0;
 pub const WINDOW_HEIGHT: f32 = 250.0;
-pub const WINDOW_WIDTH_EXTENDED: f32 = 200.0;
-pub const WINDOW_HEIGHT_EXTENDED: f32 = 360.0;
+pub const WINDOW_WIDTH_EXTENDED: f32 = 250.0;
+pub const WINDOW_HEIGHT_EXTENDED: f32 = 380.0;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     #[serde(default = "default_reset_str")]
@@ -34,6 +34,12 @@ pub struct Config {
     hide_speeds: bool,
     #[serde(default)]
     hide_tap: bool,
+    #[serde(default = "default_font_str")]
+    pub font: String,
+}
+
+fn default_font_str() -> String {
+    "Digital-7 Mono".to_string()
 }
 
 fn default_reset_str() -> String {
@@ -69,6 +75,7 @@ impl Default for Config {
             blood_moon_code,
             hide_speeds: false,
             hide_tap: false,
+            font: "Digital-7 Mono".to_string(),
             size: 1.0,
             window_x: None,
             window_y: None,

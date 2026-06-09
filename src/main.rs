@@ -135,14 +135,19 @@ fn main() {
             ])
             .expect("Failed to load custom font");
         gpui_component::init(cx);
-        
+
         // Force dark theme
         use gpui_component::theme::{Theme, ThemeMode};
         Theme::change(ThemeMode::Dark, None, cx);
 
         let (w, h, window_x, window_y) = {
             let config = config.lock().unwrap();
-            (crate::config::WINDOW_WIDTH * config.size, crate::config::WINDOW_HEIGHT * config.size, config.window_x, config.window_y)
+            (
+                crate::config::WINDOW_WIDTH * config.size,
+                crate::config::WINDOW_HEIGHT * config.size,
+                config.window_x,
+                config.window_y,
+            )
         };
 
         let bounds = if let (Some(x), Some(y)) = (window_x, window_y) {
@@ -152,7 +157,7 @@ fn main() {
         };
         let window_options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
-            //window_background: gpui::WindowBackgroundAppearance::Transparent,
+            window_background: gpui::WindowBackgroundAppearance::Transparent,
             titlebar: None,
             is_resizable: true,
             ..Default::default()

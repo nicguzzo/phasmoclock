@@ -27,6 +27,8 @@ pub struct StopwatchApp {
     show_settings: bool,
     config: ConfigShared,
     size_input: Entity<gpui_component::input::InputState>,
+    font_select:
+        Entity<gpui_component::select::SelectState<gpui_component::select::SearchableVec<String>>>,
     settings_focus: FocusHandle,
     last_bounds: Option<gpui::Bounds<Pixels>>,
     _subscriptions: Vec<Subscription>,
@@ -210,6 +212,44 @@ impl StopwatchApp {
         })
         .detach();
 
+        let mut fonts = cx.text_system().all_font_names();
+        fonts.sort();
+        let default_font = "Digital-7 Mono".to_string();
+        if let Some(pos) = fonts.iter().position(|f| f == &default_font) {
+            fonts.remove(pos);
+        }
+        fonts.insert(0, default_font.clone());
+        let fonts_vec = gpui_component::select::SearchableVec::new(fonts.clone());
+
+        let selected_font = config.lock().unwrap().font.clone();
+        let selected_index = fonts
+            .iter()
+            .position(|f| f == &selected_font)
+            .map(|row| gpui_component::IndexPath::default().row(row));
+
+        let font_select = cx.new(|cx| {
+            gpui_component::select::SelectState::new(fonts_vec, selected_index, window, cx)
+                .searchable(true)
+        });
+
+        let config_clone3 = config.clone();
+        _subscriptions.push(cx.subscribe(
+            &font_select,
+            move |_this,
+                  _select,
+                  event: &gpui_component::select::SelectEvent<
+                gpui_component::select::SearchableVec<String>,
+            >,
+                  cx| {
+                if let gpui_component::select::SelectEvent::Confirm(Some(value)) = event {
+                    let mut config = config_clone3.lock().unwrap();
+                    config.font = value.clone();
+                    config.save_config();
+                    cx.notify();
+                }
+            },
+        ));
+
         let settings_focus = cx.focus_handle();
 
         Self {
@@ -219,6 +259,7 @@ impl StopwatchApp {
             show_settings: false,
             config,
             size_input,
+            font_select,
             settings_focus,
             last_bounds: None,
             _subscriptions,
@@ -254,9 +295,9 @@ impl Render for StopwatchApp {
         } else {
             rgb(0x666666)
         };
-        let size = {
+        let (size, font_family_name) = {
             let config = self.config.lock().unwrap();
-            config.size
+            (config.size, config.font.clone())
         };
         let speed_multiplier = format!("{:03}%", bpm_tracker.get_speed_multiplier());
 
@@ -307,11 +348,11 @@ impl Render for StopwatchApp {
                             .child(
                                 Button::new("speed_multiplier")
                                     //.custom(btn1)
-                                    .w(px(64.0 * size))
+                                    .w(px(128.0 * size))
                                     .h(px(32.0 * size))
                                     .child(
                                         div()
-                                            .font_family("Digital-7 Mono")
+                                            .font_family(font_family_name.clone())
                                             .text_size(px(32.0 * size))
                                             .child(speed_multiplier),
                                     )
@@ -389,7 +430,7 @@ impl Render for StopwatchApp {
                             .flex_col()
                             .justify_start()
                             .items_center()
-                            .font_family("Digital-7 Mono")
+                            .font_family(font_family_name.clone())
                             .child(
                                 div()
                                     .m_0()
@@ -481,7 +522,23 @@ impl Render for StopwatchApp {
                             .child(gpui_component::input::NumberInput::new(&self.size_input)),
                     );
 
-                actions_div = actions_div.child(div().h(px(10.))).child(size_controls);
+                let font_controls = div()
+                    .flex()
+                    .w_full()
+                    .justify_between()
+                    .items_center()
+                    .child(div().text_color(rgb(0xffffff)).child("Font"))
+                    .child(
+                        div()
+                            .w(px(140.))
+                            .child(gpui_component::select::Select::new(&self.font_select)),
+                    );
+
+                actions_div = actions_div
+                    .child(div().h(px(10.)))
+                    .child(size_controls)
+                    .child(div().h(px(10.)))
+                    .child(font_controls);
 
                 Some(
                     div()
