@@ -161,7 +161,8 @@ fn main() {
             let cx = cx.clone();
             async move {
                 cx.open_window(window_options, |window, cx| {
-                    StopwatchApp::view(window, cx, rx, config.clone())
+                    let app = StopwatchApp::view(window, cx, rx, config.clone());
+                    cx.new(|cx| gpui_component::Root::new(app, window, cx))
                 })?;
                 Ok::<_, anyhow::Error>(())
             }

@@ -26,6 +26,7 @@ pub struct StopwatchApp {
     binding_state: Option<BindingAction>,
     show_settings: bool,
     config: ConfigShared,
+    size_input: Entity<gpui_component::input::InputState>,
     settings_focus: FocusHandle,
     last_bounds: Option<gpui::Bounds<Pixels>>,
     _subscriptions: Vec<Subscription>,
@@ -38,15 +39,89 @@ impl StopwatchApp {
         rx: mpsc::Receiver<AppKey>,
         config: ConfigShared,
     ) -> Entity<StopwatchApp> {
-        cx.new(|cx| StopwatchApp::new(cx, rx, config))
+        cx.new(|cx| StopwatchApp::new(_window, cx, rx, config))
     }
-    pub fn new(cx: &mut Context<Self>, rx: mpsc::Receiver<AppKey>, config: ConfigShared) -> Self {
+    pub fn new(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        rx: mpsc::Receiver<AppKey>,
+        config: ConfigShared,
+    ) -> Self {
         let stopwatch = cx.new(|_| Stopwatch::new());
         let bpm_tracker = cx.new(|_| BpmTracker::new());
 
         let mut _subscriptions = Vec::new();
         _subscriptions.push(cx.observe(&stopwatch, |_, _, cx| cx.notify()));
         _subscriptions.push(cx.observe(&bpm_tracker, |_, _, cx| cx.notify()));
+
+        let window_handle = window.window_handle();
+        let size_input = cx.new(|cx| {
+            let mut state = gpui_component::input::InputState::new(window, cx);
+            let size = config.lock().unwrap().size;
+            state.set_value(format!("{:.2}", size), window, cx);
+            state
+        });
+
+        let config_clone = config.clone();
+        _subscriptions.push(cx.subscribe(
+            &size_input,
+            move |_this, size_input, event: &gpui_component::input::NumberInputEvent, cx| {
+                if let gpui_component::input::NumberInputEvent::Step(action) = event {
+                    let mut config = config_clone.lock().unwrap();
+                    match action {
+                        gpui_component::input::StepAction::Increment => {
+                            config.size = (config.size + 0.25).min(3.0);
+                        }
+                        gpui_component::input::StepAction::Decrement => {
+                            config.size = (config.size - 0.25).max(0.5);
+                        }
+                    }
+                    config.save_config();
+                    let new_size = config.size;
+
+                    let size_input = size_input.clone();
+                    cx.defer(move |cx| {
+                        window_handle
+                            .update(cx, |_, window, cx| {
+                                window
+                                    .resize(gpui::size(px(320.0 * new_size), px(500.0 * new_size)));
+                                size_input.update(cx, |input, cx| {
+                                    input.set_value(format!("{:.2}", new_size), window, cx);
+                                });
+                            })
+                            .ok();
+                    });
+                    cx.notify();
+                }
+            },
+        ));
+
+        let config_clone2 = config.clone();
+        _subscriptions.push(cx.subscribe(
+            &size_input,
+            move |_this, size_input, event: &gpui_component::input::InputEvent, cx| {
+                if let gpui_component::input::InputEvent::Change = event {
+                    let text = size_input.read(cx).value().to_string();
+                    if let Ok(val) = text.parse::<f32>() {
+                        let mut config = config_clone2.lock().unwrap();
+                        let clamped = val.clamp(0.5, 3.0);
+                        config.size = clamped;
+                        config.save_config();
+                        cx.defer(move |cx| {
+                            window_handle
+                                .update(cx, |_, window, _cx| {
+                                    window.resize(gpui::size(
+                                        px(320.0 * clamped),
+                                        px(500.0 * clamped),
+                                    ));
+                                })
+                                .ok();
+                        });
+                    }
+                    cx.notify();
+                }
+            },
+        ));
 
         let stopwatch_clone = stopwatch.clone();
         let bpm_tracker_clone = bpm_tracker.clone();
@@ -122,6 +197,7 @@ impl StopwatchApp {
             binding_state: None,
             show_settings: false,
             config,
+            size_input,
             settings_focus,
             last_bounds: None,
             _subscriptions,
@@ -356,7 +432,6 @@ impl Render for StopwatchApp {
                     );
                 }
 
-                let current_size = config.size;
                 let size_controls = div()
                     .flex()
                     .w_full()
@@ -365,38 +440,8 @@ impl Render for StopwatchApp {
                     .child(div().text_color(rgb(0xffffff)).child("Window Size"))
                     .child(
                         div()
-                            .flex()
-                            .gap_2()
-                            .items_center()
-                            .child(Button::new("size_minus").label("-").on_click(cx.listener(
-                                move |this, _e, _w, cx| {
-                                    let mut config = this.config.lock().unwrap();
-                                    config.size = (config.size - 0.25).max(0.5);
-                                    config.save_config();
-                                    _w.resize(gpui::size(
-                                        px(320.0 * config.size),
-                                        px(500.0 * config.size),
-                                    ));
-                                    cx.notify();
-                                },
-                            )))
-                            .child(
-                                div()
-                                    .text_color(rgb(0xffffff))
-                                    .child(format!("{:.2}x", current_size)),
-                            )
-                            .child(Button::new("size_plus").label("+").on_click(cx.listener(
-                                move |this, _e, _w, cx| {
-                                    let mut config = this.config.lock().unwrap();
-                                    config.size = (config.size + 0.25).min(3.0);
-                                    config.save_config();
-                                    _w.resize(gpui::size(
-                                        px(320.0 * config.size),
-                                        px(500.0 * config.size),
-                                    ));
-                                    cx.notify();
-                                },
-                            ))),
+                            .w(px(140.))
+                            .child(gpui_component::input::NumberInput::new(&self.size_input)),
                     );
 
                 actions_div = actions_div.child(div().h(px(10.))).child(size_controls);
@@ -411,8 +456,7 @@ impl Render for StopwatchApp {
                         .justify_center()
                         .child(
                             div()
-                                .w(px(320.0 * size))
-                                .w(px(240.0 * size))
+                                .w(px(360.0 * size))
                                 .bg(rgb(0x222222))
                                 .p_4()
                                 .rounded_lg()
