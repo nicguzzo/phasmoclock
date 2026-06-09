@@ -238,8 +238,18 @@ impl Render for StopwatchApp {
                                 this.show_settings = !this.show_settings;
                                 if !this.show_settings {
                                     this.binding_state = None;
+                                    let config = this.config.lock().unwrap();
+                                    _window.resize(gpui::size(
+                                        px(320.0 * config.size),
+                                        px(240.0 * config.size),
+                                    ));
                                 } else {
                                     this.settings_focus.focus(_window);
+                                    let config = this.config.lock().unwrap();
+                                    _window.resize(gpui::size(
+                                        px(360.0 * config.size),
+                                        px(500.0 * config.size),
+                                    ));
                                 }
                                 cx.notify();
                             })),
@@ -363,6 +373,10 @@ impl Render for StopwatchApp {
                                     let mut config = this.config.lock().unwrap();
                                     config.size = (config.size - 0.25).max(0.5);
                                     config.save_config();
+                                    _w.resize(gpui::size(
+                                        px(320.0 * config.size),
+                                        px(500.0 * config.size),
+                                    ));
                                     cx.notify();
                                 },
                             )))
@@ -376,6 +390,10 @@ impl Render for StopwatchApp {
                                     let mut config = this.config.lock().unwrap();
                                     config.size = (config.size + 0.25).min(3.0);
                                     config.save_config();
+                                    _w.resize(gpui::size(
+                                        px(320.0 * config.size),
+                                        px(500.0 * config.size),
+                                    ));
                                     cx.notify();
                                 },
                             ))),
@@ -438,6 +456,11 @@ impl Render for StopwatchApp {
                                             cx.listener(|this, _e, _w, cx| {
                                                 this.show_settings = false;
                                                 this.binding_state = None;
+                                                let config = this.config.lock().unwrap();
+                                                _w.resize(gpui::size(
+                                                    px(320.0 * config.size),
+                                                    px(240.0 * config.size),
+                                                ));
                                                 cx.notify();
                                             }),
                                         )),
