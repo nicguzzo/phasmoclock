@@ -70,10 +70,10 @@ impl StopwatchApp {
                     let mut config = config_clone.lock().unwrap();
                     match action {
                         gpui_component::input::StepAction::Increment => {
-                            config.size = (config.size + 0.25).min(3.0);
+                            config.size = (config.size + 0.1).min(3.0);
                         }
                         gpui_component::input::StepAction::Decrement => {
-                            config.size = (config.size - 0.25).max(0.5);
+                            config.size = (config.size - 0.1).max(0.5);
                         }
                     }
                     config.save_config();
