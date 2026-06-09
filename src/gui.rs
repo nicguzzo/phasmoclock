@@ -4,8 +4,8 @@ use crate::{AppKey, ConfigShared};
 
 use gpui::colors::Colors;
 use gpui::{
-    AbsoluteLength, App, AsyncApp, Context, Div, DragMoveEvent, Entity, Pixels, Render,
-    Subscription, WeakEntity, Window, div, prelude::*, px, rgb, rgba, size,
+    AbsoluteLength, App, AsyncApp, Context, Div, DragMoveEvent, Entity, FocusHandle, KeyDownEvent,
+    Pixels, Render, Subscription, WeakEntity, Window, div, prelude::*, px, rgb, rgba, size,
 };
 use gpui_component::ColorName::Red;
 use gpui_component::{button::*, *};
@@ -26,6 +26,7 @@ pub struct StopwatchApp {
     binding_state: Option<BindingAction>,
     show_settings: bool,
     config: ConfigShared,
+    settings_focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -112,13 +113,41 @@ impl StopwatchApp {
         })
         .detach();
 
+        let settings_focus = cx.focus_handle();
+
         Self {
             stopwatch,
             bpm_tracker,
             binding_state: None,
             show_settings: false,
             config,
+            settings_focus,
             _subscriptions,
+        }
+    }
+}
+
+fn gpui_key_to_str(k: &str) -> String {
+    match k {
+        "space" => "Space".to_string(),
+        "escape" => "Escape".to_string(),
+        "enter" => "Enter".to_string(),
+        "backspace" => "Backspace".to_string(),
+        "tab" => "Tab".to_string(),
+        "up" => "ArrowUp".to_string(),
+        "down" => "ArrowDown".to_string(),
+        "left" => "ArrowLeft".to_string(),
+        "right" => "ArrowRight".to_string(),
+        _ => {
+            if k.len() == 1 {
+                k.to_uppercase()
+            } else {
+                let mut c = k.chars();
+                match c.next() {
+                    None => String::new(),
+                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                }
+            }
         }
     }
 }
@@ -177,11 +206,13 @@ impl Render for StopwatchApp {
                     .flex()
                     .w_full()
                     .justify_end()
+                    .gap_1()
                     .child(
                         Button::new("speed_multiplier")
                             //.custom(btn1)
                             .primary()
-                            .size(px(32.0 * size))
+                            .w(px(64.0 * size))
+                            .h(px(32.0 * size))
                             .child(
                                 div()
                                     .font_family("Digital-7 Mono")
@@ -206,6 +237,21 @@ impl Render for StopwatchApp {
                                     cx.notify();
                                 });
                             }),
+                    )
+                    .child(
+                        Button::new("settings")
+                            .primary()
+                            .size(px(32.0 * size))
+                            .label("⚙")
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.show_settings = !this.show_settings;
+                                if !this.show_settings {
+                                    this.binding_state = None;
+                                } else {
+                                    this.settings_focus.focus(_window);
+                                }
+                                cx.notify();
+                            })),
                     )
                     .child(div().w_full().on_mouse_down(
                         gpui::MouseButton::Left,
@@ -265,6 +311,117 @@ impl Render for StopwatchApp {
                         window.start_window_move();
                     }),
             )
+            .children(if self.show_settings {
+                let config = self.config.lock().unwrap();
+                let actions = [
+                    ("Reset Stopwatch", BindingAction::Reset, &config.reset_str),
+                    ("Tap Speed", BindingAction::Tap, &config.tap_str),
+                    (
+                        "Cycle Speed",
+                        BindingAction::CycleMultipliers,
+                        &config.cycle_multiplier_str,
+                    ),
+                    (
+                        "Blood Moon",
+                        BindingAction::BloodMoon,
+                        &config.blood_moon_str,
+                    ),
+                ];
+                let mut actions_div = div().flex().flex_col().gap_2();
+                for (label_str, action, current_key) in actions {
+                    let is_active = self.binding_state == Some(action);
+                    let button_text = if is_active {
+                        "Press any key...".to_string()
+                    } else {
+                        format!("[ {} ]", current_key)
+                    };
+                    actions_div = actions_div.child(
+                        div()
+                            .flex()
+                            .w_full()
+                            .justify_between()
+                            .items_center()
+                            .child(div().text_color(rgb(0xffffff)).child(label_str))
+                            .child(Button::new(label_str).label(button_text).on_click(
+                                cx.listener(move |this, _e, _w, cx| {
+                                    this.binding_state = Some(action);
+                                    this.settings_focus.focus(_w);
+                                    cx.notify();
+                                }),
+                            )),
+                    );
+                }
+
+                Some(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .bg(rgba(0x000000cc))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .w(px(320.))
+                                .bg(rgb(0x222222))
+                                .p_4()
+                                .rounded_lg()
+                                .flex()
+                                .flex_col()
+                                .gap_4()
+                                .track_focus(&self.settings_focus)
+                                .on_key_down(cx.listener(
+                                    |this, event: &KeyDownEvent, _window, cx| {
+                                        if let Some(action) = this.binding_state {
+                                            let key_name = gpui_key_to_str(&event.keystroke.key);
+                                            let mut config = this.config.lock().unwrap();
+                                            match action {
+                                                BindingAction::Reset => config.reset_str = key_name,
+                                                BindingAction::Tap => config.tap_str = key_name,
+                                                BindingAction::CycleMultipliers => {
+                                                    config.cycle_multiplier_str = key_name
+                                                }
+                                                BindingAction::BloodMoon => {
+                                                    config.blood_moon_str = key_name
+                                                }
+                                            }
+                                            config.save_config();
+                                            this.binding_state = None;
+                                            cx.notify();
+                                        }
+                                    },
+                                ))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .justify_between()
+                                        .items_center()
+                                        .child(
+                                            div()
+                                                .text_size(px(16.))
+                                                .text_color(rgb(0xffffff))
+                                                .child("Keybind Configuration"),
+                                        )
+                                        .child(Button::new("close_settings").label("🗙").on_click(
+                                            cx.listener(|this, _e, _w, cx| {
+                                                this.show_settings = false;
+                                                this.binding_state = None;
+                                                cx.notify();
+                                            }),
+                                        )),
+                                )
+                                .child(
+                                    div()
+                                        .text_color(rgb(0xaaaaaa))
+                                        .text_size(px(14.))
+                                        .child("Click an action to rebind it:"),
+                                )
+                                .child(actions_div),
+                        ),
+                )
+            } else {
+                None
+            })
     }
 
     //pub fn parse_key(key: Key) -> u16 {}
