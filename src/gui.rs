@@ -253,13 +253,13 @@ impl Render for StopwatchApp {
                                 cx.notify();
                             })),
                     )
-                    .child(div().w_full().on_mouse_down(
+                    .child(div().w_full().when(!self.show_settings, |this| this.on_mouse_down(
                         gpui::MouseButton::Left,
                         |_event, window, _app| {
                             //println!("on_mouse_down");
                             window.start_window_move();
                         },
-                    ))
+                    )))
                     .child(Button::new("close").primary().label("🗙").on_click(
                         |_event, _window, app| {
                             app.quit();
@@ -306,10 +306,10 @@ impl Render for StopwatchApp {
                             .text_color(rgb(0xffff00))
                             .child(bpm_str),
                     )
-                    .on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
+                    .when(!self.show_settings, |this| this.on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
                         //println!("on_mouse_down");
                         window.start_window_move();
-                    }),
+                    })),
             )
             .children(if self.show_settings {
                 let config = self.config.lock().unwrap();
