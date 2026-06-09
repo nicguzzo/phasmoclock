@@ -99,10 +99,10 @@ impl StopwatchApp {
                             cx.notify();
                         });
 
-                        bpm_tracker_clone.update(cx, |bpm_tracker: &mut BpmTracker, cx| {
-                            bpm_tracker.tick();
-                            cx.notify();
-                        });
+                        //bpm_tracker_clone.update(cx, |bpm_tracker: &mut BpmTracker, cx| {
+                        //    bpm_tracker.tick();
+                        //    cx.notify();
+                        //});
                     });
 
                     if result.is_err() {
@@ -123,31 +123,6 @@ impl StopwatchApp {
             config,
             settings_focus,
             _subscriptions,
-        }
-    }
-}
-
-fn gpui_key_to_str(k: &str) -> String {
-    match k {
-        "space" => "Space".to_string(),
-        "escape" => "Escape".to_string(),
-        "enter" => "Enter".to_string(),
-        "backspace" => "Backspace".to_string(),
-        "tab" => "Tab".to_string(),
-        "up" => "ArrowUp".to_string(),
-        "down" => "ArrowDown".to_string(),
-        "left" => "ArrowLeft".to_string(),
-        "right" => "ArrowRight".to_string(),
-        _ => {
-            if k.len() == 1 {
-                k.to_uppercase()
-            } else {
-                let mut c = k.chars();
-                match c.next() {
-                    None => String::new(),
-                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                }
-            }
         }
     }
 }
@@ -253,13 +228,12 @@ impl Render for StopwatchApp {
                                 cx.notify();
                             })),
                     )
-                    .child(div().w_full().when(!self.show_settings, |this| this.on_mouse_down(
-                        gpui::MouseButton::Left,
-                        |_event, window, _app| {
+                    .child(div().w_full().when(!self.show_settings, |this| {
+                        this.on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
                             //println!("on_mouse_down");
                             window.start_window_move();
-                        },
-                    )))
+                        })
+                    }))
                     .child(Button::new("close").primary().label("🗙").on_click(
                         |_event, _window, app| {
                             app.quit();
@@ -306,10 +280,12 @@ impl Render for StopwatchApp {
                             .text_color(rgb(0xffff00))
                             .child(bpm_str),
                     )
-                    .when(!self.show_settings, |this| this.on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
-                        //println!("on_mouse_down");
-                        window.start_window_move();
-                    })),
+                    .when(!self.show_settings, |this| {
+                        this.on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
+                            //println!("on_mouse_down");
+                            window.start_window_move();
+                        })
+                    }),
             )
             .children(if self.show_settings {
                 let config = self.config.lock().unwrap();
@@ -373,7 +349,7 @@ impl Render for StopwatchApp {
                                 .on_key_down(cx.listener(
                                     |this, event: &KeyDownEvent, _window, cx| {
                                         if let Some(action) = this.binding_state {
-                                            let key_name = gpui_key_to_str(&event.keystroke.key);
+                                            let key_name = event.keystroke.key.clone();
                                             let mut config = this.config.lock().unwrap();
                                             match action {
                                                 BindingAction::Reset => config.reset_str = key_name,

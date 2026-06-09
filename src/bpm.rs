@@ -42,6 +42,7 @@ impl BpmTracker {
         if self.taps.len() > 5 {
             self.taps.pop_front();
         }
+        self.tick();
     }
 
     pub fn tick(&mut self) {
