@@ -27,6 +27,7 @@ pub struct StopwatchApp {
     show_settings: bool,
     config: ConfigShared,
     settings_focus: FocusHandle,
+    last_bounds: Option<gpui::Bounds<Pixels>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -122,13 +123,31 @@ impl StopwatchApp {
             show_settings: false,
             config,
             settings_focus,
+            last_bounds: None,
             _subscriptions,
         }
     }
 }
 
 impl Render for StopwatchApp {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let current_bounds = window.bounds();
+        let mut bounds_changed = false;
+        if let Some(last) = self.last_bounds {
+            if last.origin.x != current_bounds.origin.x || last.origin.y != current_bounds.origin.y
+            {
+                bounds_changed = true;
+            }
+        }
+        self.last_bounds = Some(current_bounds);
+
+        if bounds_changed {
+            let mut config = self.config.lock().unwrap();
+            config.window_x = Some(current_bounds.origin.x.into());
+            config.window_y = Some(current_bounds.origin.y.into());
+            config.save_config();
+        }
+
         let bpm_tracker_entity = self.bpm_tracker.clone();
         let bpm_tracker_entity2 = self.bpm_tracker.clone();
         let stopwatch = self.stopwatch.read(cx);
@@ -185,7 +204,6 @@ impl Render for StopwatchApp {
                     .child(
                         Button::new("speed_multiplier")
                             //.custom(btn1)
-                            .primary()
                             .w(px(64.0 * size))
                             .h(px(32.0 * size))
                             .child(
@@ -203,7 +221,6 @@ impl Render for StopwatchApp {
                     )
                     .child(
                         Button::new("blood_moon")
-                            .primary()
                             .size(px(32.0 * size))
                             .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
                             .on_click(move |_event, _window, cx| {
@@ -215,7 +232,6 @@ impl Render for StopwatchApp {
                     )
                     .child(
                         Button::new("settings")
-                            .primary()
                             .size(px(32.0 * size))
                             .label("⚙")
                             .on_click(cx.listener(|this, _event, _window, cx| {
@@ -234,11 +250,13 @@ impl Render for StopwatchApp {
                             window.start_window_move();
                         })
                     }))
-                    .child(Button::new("close").primary().label("🗙").on_click(
-                        |_event, _window, app| {
-                            app.quit();
-                        },
-                    )),
+                    .child(
+                        Button::new("close")
+                            .label("🗙")
+                            .on_click(|_event, _window, app| {
+                                app.quit();
+                            }),
+                    ),
             )
             .child(
                 div()
@@ -328,6 +346,43 @@ impl Render for StopwatchApp {
                     );
                 }
 
+                let current_size = config.size;
+                let size_controls = div()
+                    .flex()
+                    .w_full()
+                    .justify_between()
+                    .items_center()
+                    .child(div().text_color(rgb(0xffffff)).child("Window Size"))
+                    .child(
+                        div()
+                            .flex()
+                            .gap_2()
+                            .items_center()
+                            .child(Button::new("size_minus").label("-").on_click(cx.listener(
+                                move |this, _e, _w, cx| {
+                                    let mut config = this.config.lock().unwrap();
+                                    config.size = (config.size - 0.25).max(0.5);
+                                    config.save_config();
+                                    cx.notify();
+                                },
+                            )))
+                            .child(
+                                div()
+                                    .text_color(rgb(0xffffff))
+                                    .child(format!("{:.2}x", current_size)),
+                            )
+                            .child(Button::new("size_plus").label("+").on_click(cx.listener(
+                                move |this, _e, _w, cx| {
+                                    let mut config = this.config.lock().unwrap();
+                                    config.size = (config.size + 0.25).min(3.0);
+                                    config.save_config();
+                                    cx.notify();
+                                },
+                            ))),
+                    );
+
+                actions_div = actions_div.child(div().h(px(10.))).child(size_controls);
+
                 Some(
                     div()
                         .absolute()
@@ -338,7 +393,8 @@ impl Render for StopwatchApp {
                         .justify_center()
                         .child(
                             div()
-                                .w(px(320.))
+                                .w(px(320.0 * size))
+                                .w(px(240.0 * size))
                                 .bg(rgb(0x222222))
                                 .p_4()
                                 .rounded_lg()

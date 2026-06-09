@@ -23,6 +23,10 @@ pub struct Config {
     #[serde(default = "default_size")]
     pub size: f32,
     #[serde(default)]
+    pub window_x: Option<f32>,
+    #[serde(default)]
+    pub window_y: Option<f32>,
+    #[serde(default)]
     hide_speeds: bool,
     #[serde(default)]
     hide_tap: bool,
@@ -62,6 +66,8 @@ impl Default for Config {
             hide_speeds: false,
             hide_tap: false,
             size: 1.0,
+            window_x: None,
+            window_y: None,
         }
     }
 }
