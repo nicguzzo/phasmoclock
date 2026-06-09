@@ -6,7 +6,7 @@ A lightweight, cross-platform overlay application built in Rust (inspired on pha
 
 Designed for phasmophobia specialized tracking (like calculating in-game ghost speeds or speedrunning), the app features a borderless, draggable, always-on-top UI.
 
-**Note: Windows may show a SmartScreen warning because this app is new and unsigned. Click 'More info' and 'Run anyway' to run.**
+**Note: Windows may show a SmartScreen warning because this app is new and unsigned. Click 'More info' and 'Run anyway'.**
 
 ![screenshot01](assets/screenshot01.webp)
 
