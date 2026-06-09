@@ -27,7 +27,7 @@ pub struct FontAssets;
 impl AssetSource for FontAssets {
     fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
         match path {
-            "fonts/digital-7mono.ttf" => {
+            "fonts/digital-7_mono.ttf" => {
                 let bytes = include_bytes!("../assets/fonts/digital-7_mono.ttf");
                 Ok(Some(Cow::Borrowed(bytes)))
             }
@@ -52,9 +52,19 @@ fn main() {
 
     let app = Application::new().with_assets(FontAssets);
     app.run(move |cx: &mut App| {
+        cx.text_system()
+            .add_fonts(vec![
+                cx.asset_source()
+                    .load("fonts/digital-7_mono.ttf")
+                    .unwrap()
+                    .unwrap(),
+            ])
+            .expect("Failed to load custom font");
+        gpui_component::init(cx);
+
         //let bounds = Bounds::centered(None, size(px(210.0), px(125.0)), cx);
         let window_options = WindowOptions {
-            //            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            //window_bounds: Some(WindowBounds::Windowed(bounds)),
             window_background: gpui::WindowBackgroundAppearance::Transparent,
             ..Default::default()
         };

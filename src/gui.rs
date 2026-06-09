@@ -3,9 +3,10 @@ use crate::stopwatch::Stopwatch;
 use crate::{AppKey, ConfigShared};
 
 use gpui::{
-    AbsoluteLength, App, AsyncApp, Context, Entity, Pixels, Render, Subscription, WeakEntity,
-    Window, div, prelude::*, rgb, rgba,
+    AbsoluteLength, App, AsyncApp, Context, Div, DragMoveEvent, Entity, Pixels, Render,
+    Subscription, WeakEntity, Window, div, prelude::*, px, rgb, rgba,
 };
+use gpui_component::{button::*, *};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -139,20 +140,47 @@ impl Render for StopwatchApp {
             .flex()
             .flex_col()
             .gap_3()
-            .bg(rgba(0x20505050))
-            //.size(px(500.0))
+            .bg(rgba(0x00000000))
             .justify_center()
             .items_center()
-            .font_family("Digital-7 Mono")
-            .text_size(AbsoluteLength::Pixels(Pixels::from(100.0)))
-            .text_color(rgb(0xffffff))
-            .child(secs_str)
-            .text_size(AbsoluteLength::Pixels(Pixels::from(100.0)))
-            .child(bpm_str)
+            .child(
+                div()
+                    .flex_1()
+                    .w_full()
+                    .justify_end()
+                    .items_end()
+                    .child(div().flex_1().w_full())
+                    .child(Button::new("close").primary().label("🗙").on_click(
+                        |_event, _window, app| {
+                            app.quit();
+                        },
+                    )),
+            )
+            .child(
+                div()
+                    .font_family("Digital-7 Mono")
+                    .child(
+                        div()
+                            .text_size(px(100.0))
+                            .text_color(rgb(0x00ff00))
+                            .child(secs_str),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(60.0))
+                            .text_color(rgb(0xffff00))
+                            .child(bpm_str),
+                    )
+                    .on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
+                        //println!("on_mouse_down");
+                        window.start_window_move();
+                    }),
+            )
     }
 
     //pub fn parse_key(key: Key) -> u16 {}
 }
+
 /*
 impl eframe::App for StopwatchApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
