@@ -142,7 +142,7 @@ fn main() {
 
         let (w, h, window_x, window_y) = {
             let config = config.lock().unwrap();
-            (320.0 * config.size, 240.0 * config.size, config.window_x, config.window_y)
+            (crate::config::WINDOW_WIDTH * config.size, crate::config::WINDOW_HEIGHT * config.size, config.window_x, config.window_y)
         };
 
         let bounds = if let (Some(x), Some(y)) = (window_x, window_y) {

@@ -65,7 +65,7 @@ impl StopwatchApp {
         let config_clone = config.clone();
         _subscriptions.push(cx.subscribe(
             &size_input,
-            move |_this, size_input, event: &gpui_component::input::NumberInputEvent, cx| {
+            move |this, size_input, event: &gpui_component::input::NumberInputEvent, cx| {
                 if let gpui_component::input::NumberInputEvent::Step(action) = event {
                     let mut config = config_clone.lock().unwrap();
                     match action {
@@ -79,12 +79,23 @@ impl StopwatchApp {
                     config.save_config();
                     let new_size = config.size;
 
+                    let show_settings = this.show_settings;
                     let size_input = size_input.clone();
                     cx.defer(move |cx| {
                         window_handle
-                            .update(cx, |_, window, cx| {
-                                window
-                                    .resize(gpui::size(px(320.0 * new_size), px(500.0 * new_size)));
+                            .update(cx, move |_, window, cx| {
+                                let w = if show_settings {
+                                    crate::config::WINDOW_WIDTH * 2.0
+                                } else {
+                                    crate::config::WINDOW_WIDTH
+                                };
+                                let h = if show_settings {
+                                    crate::config::WINDOW_HEIGHT_EXTENDED
+                                        .max(crate::config::WINDOW_HEIGHT * new_size)
+                                } else {
+                                    crate::config::WINDOW_HEIGHT * new_size
+                                };
+                                window.resize(gpui::size(px(w * new_size), px(h)));
                                 size_input.update(cx, |input, cx| {
                                     input.set_value(format!("{:.2}", new_size), window, cx);
                                 });
@@ -99,7 +110,7 @@ impl StopwatchApp {
         let config_clone2 = config.clone();
         _subscriptions.push(cx.subscribe(
             &size_input,
-            move |_this, size_input, event: &gpui_component::input::InputEvent, cx| {
+            move |this, size_input, event: &gpui_component::input::InputEvent, cx| {
                 if let gpui_component::input::InputEvent::Change = event {
                     let text = size_input.read(cx).value().to_string();
                     if let Ok(val) = text.parse::<f32>() {
@@ -107,13 +118,23 @@ impl StopwatchApp {
                         let clamped = val.clamp(0.5, 3.0);
                         config.size = clamped;
                         config.save_config();
+                        let show_settings = this.show_settings;
                         cx.defer(move |cx| {
                             window_handle
-                                .update(cx, |_, window, _cx| {
-                                    window.resize(gpui::size(
-                                        px(320.0 * clamped),
-                                        px(500.0 * clamped),
-                                    ));
+                                .update(cx, move |_, window, _cx| {
+                                    let w = if show_settings {
+                                        crate::config::WINDOW_WIDTH
+                                            + crate::config::WINDOW_WIDTH_EXTENDED
+                                    } else {
+                                        crate::config::WINDOW_WIDTH
+                                    };
+                                    let h = if show_settings {
+                                        crate::config::WINDOW_HEIGHT_EXTENDED
+                                            .max(crate::config::WINDOW_HEIGHT * clamped)
+                                    } else {
+                                        crate::config::WINDOW_HEIGHT * clamped
+                                    };
+                                    window.resize(gpui::size(px(w * clamped), px(h)));
                                 })
                                 .ok();
                         });
@@ -264,132 +285,148 @@ impl Render for StopwatchApp {
             .w_full()
             .h_full()
             .flex()
-            .flex_col()
+            .flex_row()
             .m_0()
             .p_0()
-            //.bg(rgb(0xff0000))
-            //.bg(rgba(0x00000000))
-            //.justify_center()
             .child(
                 div()
-                    .p_2()
-                    .flex()
-                    .w_full()
-                    .justify_end()
-                    .gap_1()
-                    .child(
-                        Button::new("speed_multiplier")
-                            //.custom(btn1)
-                            .w(px(64.0 * size))
-                            .h(px(32.0 * size))
-                            .child(
-                                div()
-                                    .font_family("Digital-7 Mono")
-                                    .text_size(px(32.0 * size))
-                                    .child(speed_multiplier),
-                            )
-                            .on_click(move |_event, _window, cx| {
-                                bpm_tracker_entity.update(cx, |bpm_tracker, cx| {
-                                    bpm_tracker.cycle_multiplier();
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        Button::new("blood_moon")
-                            .size(px(32.0 * size))
-                            .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
-                            .on_click(move |_event, _window, cx| {
-                                bpm_tracker_entity2.update(cx, |bpm_tracker, cx| {
-                                    bpm_tracker.toggle_blood_moon();
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        Button::new("settings")
-                            .size(px(32.0 * size))
-                            .label("⚙")
-                            .on_click(cx.listener(|this, _event, _window, cx| {
-                                this.show_settings = !this.show_settings;
-                                if !this.show_settings {
-                                    this.binding_state = None;
-                                    let config = this.config.lock().unwrap();
-                                    _window.resize(gpui::size(
-                                        px(320.0 * config.size),
-                                        px(240.0 * config.size),
-                                    ));
-                                } else {
-                                    this.settings_focus.focus(_window);
-                                    let config = this.config.lock().unwrap();
-                                    _window.resize(gpui::size(
-                                        px(360.0 * config.size),
-                                        px(500.0 * config.size),
-                                    ));
-                                }
-                                cx.notify();
-                            })),
-                    )
-                    .child(div().w_full().when(!self.show_settings, |this| {
-                        this.on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
-                            //println!("on_mouse_down");
-                            window.start_window_move();
-                        })
-                    }))
-                    .child(
-                        Button::new("close")
-                            .label("🗙")
-                            .on_click(|_event, _window, app| {
-                                app.quit();
-                            }),
-                    ),
-            )
-            .child(
-                div()
-                    .m_0()
-                    .p_0()
-                    .gap_0()
-                    //.w_full()
-                    .size_full()
+                    .w(px(crate::config::WINDOW_WIDTH * size))
+                    .h_full()
                     .flex()
                     .flex_col()
-                    .justify_start()
-                    .items_center()
-                    .font_family("Digital-7 Mono")
+                    //.bg(rgb(0xff0000))
+                    //.bg(rgba(0x00000000))
+                    //.justify_center()
                     .child(
                         div()
-                            .m_0()
-                            .p_0()
-                            .pt_3()
-                            .line_height(gpui::relative(0.8))
-                            .text_size(px(40.0 * size))
-                            .text_color(rgb(0x00ffff))
-                            .child(last_secs_str),
+                            .p_2()
+                            .flex()
+                            .w_full()
+                            .justify_end()
+                            .gap_1()
+                            .child(
+                                Button::new("speed_multiplier")
+                                    //.custom(btn1)
+                                    .w(px(64.0 * size))
+                                    .h(px(32.0 * size))
+                                    .child(
+                                        div()
+                                            .font_family("Digital-7 Mono")
+                                            .text_size(px(32.0 * size))
+                                            .child(speed_multiplier),
+                                    )
+                                    .on_click(move |_event, _window, cx| {
+                                        bpm_tracker_entity.update(cx, |bpm_tracker, cx| {
+                                            bpm_tracker.cycle_multiplier();
+                                            cx.notify();
+                                        });
+                                    }),
+                            )
+                            .child(
+                                Button::new("blood_moon")
+                                    .size(px(32.0 * size))
+                                    .icon(Icon::new(IconName::Moon).text_color(blood_moon_color))
+                                    .on_click(move |_event, _window, cx| {
+                                        bpm_tracker_entity2.update(cx, |bpm_tracker, cx| {
+                                            bpm_tracker.toggle_blood_moon();
+                                            cx.notify();
+                                        });
+                                    }),
+                            )
+                            .child(
+                                Button::new("settings")
+                                    .size(px(32.0 * size))
+                                    .label("⚙")
+                                    .on_click(cx.listener(|this, _event, _window, cx| {
+                                        this.show_settings = !this.show_settings;
+                                        if !this.show_settings {
+                                            this.binding_state = None;
+                                            let config = this.config.lock().unwrap();
+                                            _window.resize(gpui::size(
+                                                px(crate::config::WINDOW_WIDTH * config.size),
+                                                px(crate::config::WINDOW_HEIGHT * config.size),
+                                            ));
+                                        } else {
+                                            this.settings_focus.focus(_window);
+                                            let config = this.config.lock().unwrap();
+                                            let h = crate::config::WINDOW_HEIGHT_EXTENDED
+                                                .max(crate::config::WINDOW_HEIGHT * config.size);
+                                            _window.resize(gpui::size(
+                                                px((crate::config::WINDOW_WIDTH * config.size
+                                                    + crate::config::WINDOW_WIDTH_EXTENDED)),
+                                                px(h),
+                                            ));
+                                        }
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(div().w_full().when(!self.show_settings, |this| {
+                                this.on_mouse_down(
+                                    gpui::MouseButton::Left,
+                                    |_event, window, _app| {
+                                        //println!("on_mouse_down");
+                                        window.start_window_move();
+                                    },
+                                )
+                            }))
+                            .child(
+                                Button::new("close")
+                                    .size(px(32.0 * size))
+                                    .label("🗙")
+                                    .on_click(|_event, _window, app| {
+                                        app.quit();
+                                    }),
+                            ),
                     )
                     .child(
                         div()
                             .m_0()
                             .p_0()
-                            .pt_3()
-                            .line_height(gpui::relative(0.8))
-                            .text_size(px(100.0 * size))
-                            .text_color(rgb(0x00ff00))
-                            .child(secs_str),
-                    )
-                    .child(
-                        div()
-                            .m_0()
-                            .p_0()
-                            .text_size(px(40.0 * size))
-                            .text_color(rgb(0xffff00))
-                            .child(bpm_str),
-                    )
-                    .when(!self.show_settings, |this| {
-                        this.on_mouse_down(gpui::MouseButton::Left, |_event, window, _app| {
-                            //println!("on_mouse_down");
-                            window.start_window_move();
-                        })
-                    }),
+                            .gap_0()
+                            //.w_full()
+                            .size_full()
+                            .flex()
+                            .flex_col()
+                            .justify_start()
+                            .items_center()
+                            .font_family("Digital-7 Mono")
+                            .child(
+                                div()
+                                    .m_0()
+                                    .p_0()
+                                    .pt(px(3.0 * size))
+                                    .line_height(gpui::relative(0.8))
+                                    .text_size(px(40.0 * size))
+                                    .text_color(rgb(0x00ffff))
+                                    .child(last_secs_str),
+                            )
+                            .child(
+                                div()
+                                    .m_0()
+                                    .p_0()
+                                    .pt(px(3.0 * size))
+                                    .line_height(gpui::relative(0.8))
+                                    .text_size(px(100.0 * size))
+                                    .text_color(rgb(0x00ff00))
+                                    .child(secs_str),
+                            )
+                            .child(
+                                div()
+                                    .m_0()
+                                    .p_0()
+                                    .text_size(px(40.0 * size))
+                                    .text_color(rgb(0xffff00))
+                                    .child(bpm_str),
+                            )
+                            .when(!self.show_settings, |this| {
+                                this.on_mouse_down(
+                                    gpui::MouseButton::Left,
+                                    |_event, window, _app| {
+                                        window.start_window_move();
+                                    },
+                                )
+                            }),
+                    ),
             )
             .children(if self.show_settings {
                 let config = self.config.lock().unwrap();
@@ -448,75 +485,63 @@ impl Render for StopwatchApp {
 
                 Some(
                     div()
-                        .absolute()
-                        .inset_0()
-                        .bg(rgba(0x000000cc))
+                        .w(px(crate::config::WINDOW_WIDTH
+                            + crate::config::WINDOW_WIDTH_EXTENDED * size))
+                        .h_full()
+                        .bg(rgb(0x222222))
+                        .p_4()
                         .flex()
-                        .items_center()
-                        .justify_center()
+                        .flex_col()
+                        .gap_4()
+                        .track_focus(&self.settings_focus)
+                        .on_key_down(cx.listener(|this, event: &KeyDownEvent, _window, cx| {
+                            if let Some(action) = this.binding_state {
+                                let key_name = event.keystroke.key.clone();
+                                let mut config = this.config.lock().unwrap();
+                                match action {
+                                    BindingAction::Reset => config.reset_str = key_name,
+                                    BindingAction::Tap => config.tap_str = key_name,
+                                    BindingAction::CycleMultipliers => {
+                                        config.cycle_multiplier_str = key_name
+                                    }
+                                    BindingAction::BloodMoon => config.blood_moon_str = key_name,
+                                }
+                                config.save_config();
+                                this.binding_state = None;
+                                cx.notify();
+                            }
+                        }))
                         .child(
                             div()
-                                .w(px(360.0 * size))
-                                .bg(rgb(0x222222))
-                                .p_4()
-                                .rounded_lg()
                                 .flex()
-                                .flex_col()
-                                .gap_4()
-                                .track_focus(&self.settings_focus)
-                                .on_key_down(cx.listener(
-                                    |this, event: &KeyDownEvent, _window, cx| {
-                                        if let Some(action) = this.binding_state {
-                                            let key_name = event.keystroke.key.clone();
-                                            let mut config = this.config.lock().unwrap();
-                                            match action {
-                                                BindingAction::Reset => config.reset_str = key_name,
-                                                BindingAction::Tap => config.tap_str = key_name,
-                                                BindingAction::CycleMultipliers => {
-                                                    config.cycle_multiplier_str = key_name
-                                                }
-                                                BindingAction::BloodMoon => {
-                                                    config.blood_moon_str = key_name
-                                                }
-                                            }
-                                            config.save_config();
-                                            this.binding_state = None;
-                                            cx.notify();
-                                        }
-                                    },
-                                ))
+                                .justify_between()
+                                .items_center()
                                 .child(
                                     div()
-                                        .flex()
-                                        .justify_between()
-                                        .items_center()
-                                        .child(
-                                            div()
-                                                .text_size(px(16.))
-                                                .text_color(rgb(0xffffff))
-                                                .child("Keybind Configuration"),
-                                        )
-                                        .child(Button::new("close_settings").label("🗙").on_click(
-                                            cx.listener(|this, _e, _w, cx| {
-                                                this.show_settings = false;
-                                                this.binding_state = None;
-                                                let config = this.config.lock().unwrap();
-                                                _w.resize(gpui::size(
-                                                    px(320.0 * config.size),
-                                                    px(240.0 * config.size),
-                                                ));
-                                                cx.notify();
-                                            }),
-                                        )),
+                                        .text_size(px(16.))
+                                        .text_color(rgb(0xffffff))
+                                        .child("Keybind Configuration"),
                                 )
-                                .child(
-                                    div()
-                                        .text_color(rgb(0xaaaaaa))
-                                        .text_size(px(14.))
-                                        .child("Click an action to rebind it:"),
-                                )
-                                .child(actions_div),
-                        ),
+                                .child(Button::new("close_settings").label("🗙").on_click(
+                                    cx.listener(|this, _e, _w, cx| {
+                                        this.show_settings = false;
+                                        this.binding_state = None;
+                                        let config = this.config.lock().unwrap();
+                                        _w.resize(gpui::size(
+                                            px(crate::config::WINDOW_WIDTH * config.size),
+                                            px(crate::config::WINDOW_HEIGHT * config.size),
+                                        ));
+                                        cx.notify();
+                                    }),
+                                )),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(0xaaaaaa))
+                                .text_size(px(14.))
+                                .child("Click an action to rebind it:"),
+                        )
+                        .child(actions_div),
                 )
             } else {
                 None

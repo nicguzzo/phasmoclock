@@ -2,6 +2,10 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
+pub const WINDOW_WIDTH: f32 = 320.0;
+pub const WINDOW_HEIGHT: f32 = 250.0;
+pub const WINDOW_WIDTH_EXTENDED: f32 = 200.0;
+pub const WINDOW_HEIGHT_EXTENDED: f32 = 360.0;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     #[serde(default = "default_reset_str")]
