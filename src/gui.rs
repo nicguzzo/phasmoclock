@@ -258,10 +258,10 @@ impl StopwatchApp {
                             cx.notify();
                         });
 
-                        //bpm_tracker_clone.update(cx, |bpm_tracker: &mut BpmTracker, cx| {
-                        //    bpm_tracker.tick();
-                        //    cx.notify();
-                        //});
+                        bpm_tracker_clone.update(cx, |bpm_tracker: &mut BpmTracker, cx| {
+                            bpm_tracker.tick();
+                            cx.notify();
+                        });
                     });
 
                     if result.is_err() {
