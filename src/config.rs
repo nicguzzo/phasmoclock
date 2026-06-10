@@ -4,8 +4,8 @@ use std::{fs, path::PathBuf};
 
 pub const WINDOW_WIDTH: f32 = 360.0;
 pub const WINDOW_HEIGHT: f32 = 250.0;
-pub const WINDOW_WIDTH_EXTENDED: f32 = 250.0;
-pub const WINDOW_HEIGHT_EXTENDED: f32 = 380.0;
+pub const WINDOW_WIDTH_EXTENDED: f32 = 500.0;
+pub const WINDOW_HEIGHT_EXTENDED: f32 = 500.0;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     #[serde(default = "default_reset_str")]
@@ -38,6 +38,12 @@ pub struct Config {
     pub font: String,
     #[serde(default = "default_opacity")]
     pub opacity: f32,
+    #[serde(default = "default_keyboard_device")]
+    pub keyboard_device: String,
+}
+
+fn default_keyboard_device() -> String {
+    "".to_string()
 }
 
 fn default_opacity() -> f32 {
@@ -83,6 +89,7 @@ impl Default for Config {
             hide_tap: false,
             font: "Digital-7 Mono".to_string(),
             opacity: 1.0,
+            keyboard_device: "".to_string(),
             size: 1.0,
             window_x: None,
             window_y: None,

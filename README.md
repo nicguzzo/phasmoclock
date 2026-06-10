@@ -19,11 +19,11 @@ Designed for phasmophobia specialized tracking (like calculating in-game ghost s
   * **Windows:** Uses `rdev` for native low-level OS hooks.
 * **In-App Keybinding:** A floating settings window to rebind actions on the fly. Persists automatically to `bindings.json`.
 * **Custom Typography:** Embedded `.ttf` digital clock fonts ensure perfect typographical baselines across platforms.
-* **Borderless Overlay:** Clean `egui` interface that can be dragged anywhere on the screen by clicking the background.
+* **Borderless Overlay:** Clean `gpui` interface that can be dragged anywhere on the screen by clicking the background.
 
 ## 🛠️ Tech Stack
 * **Language:** Rust
-* **GUI Framework:** `eframe` / `egui`
+* **GUI Framework:** `gpui`
 * **Linux Input:** `evdev`
 * **Windows Input:** `rdev`
 

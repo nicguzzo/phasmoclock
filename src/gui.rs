@@ -30,6 +30,9 @@ pub struct StopwatchApp {
     opacity_input: Entity<gpui_component::input::InputState>,
     font_select:
         Entity<gpui_component::select::SelectState<gpui_component::select::SearchableVec<String>>>,
+    keyboard_select: Option<
+        Entity<gpui_component::select::SelectState<gpui_component::select::SearchableVec<String>>>,
+    >,
     settings_focus: FocusHandle,
     last_bounds: Option<gpui::Bounds<Pixels>>,
     _subscriptions: Vec<Subscription>,
@@ -307,6 +310,68 @@ impl StopwatchApp {
             },
         ));
 
+        #[cfg(target_os = "linux")]
+        let keyboard_select = Some(cx.new(|cx| {
+            let mut devices = vec!["Auto-detect".to_string()];
+            let current_device = config.lock().unwrap().keyboard_device.clone();
+
+            use evdev::{EventType, enumerate};
+            for (path, device) in enumerate() {
+                if device.supported_events().contains(EventType::KEY) {
+                    let path_str = path.to_string_lossy().to_string();
+                    let name = device.name().unwrap_or("Unknown").to_string();
+                    let label = format!("{} ({})", name, path_str);
+                    devices.push(label);
+                }
+            }
+
+            let selected_index = devices
+                .iter()
+                .position(|f| {
+                    if current_device.is_empty() {
+                        f == "Auto-detect"
+                    } else {
+                        f.ends_with(&format!("({})", current_device))
+                    }
+                })
+                .map(|row| gpui_component::IndexPath::default().row(row));
+
+            let devices_vec = gpui_component::select::SearchableVec::new(devices);
+            gpui_component::select::SelectState::new(devices_vec, selected_index, window, cx)
+                .searchable(true)
+        }));
+
+        #[cfg(not(target_os = "linux"))]
+        let keyboard_select = None;
+
+        #[cfg(target_os = "linux")]
+        if let Some(keyboard_select) = &keyboard_select {
+            let config_clone_kbd = config.clone();
+            _subscriptions.push(cx.subscribe(
+                keyboard_select,
+                move |_this,
+                      _select,
+                      event: &gpui_component::select::SelectEvent<
+                    gpui_component::select::SearchableVec<String>,
+                >,
+                      cx| {
+                    if let gpui_component::select::SelectEvent::Confirm(Some(value)) = event {
+                        let mut config = config_clone_kbd.lock().unwrap();
+                        if value == "Auto-detect" {
+                            config.keyboard_device = "".to_string();
+                        } else if let Some(start) = value.rfind('(') {
+                            if let Some(end) = value.rfind(')') {
+                                let path = &value[start + 1..end];
+                                config.keyboard_device = path.to_string();
+                            }
+                        }
+                        config.save_config();
+                        cx.notify();
+                    }
+                },
+            ));
+        }
+
         let settings_focus = cx.focus_handle();
 
         Self {
@@ -318,6 +383,7 @@ impl StopwatchApp {
             size_input,
             opacity_input,
             font_select,
+            keyboard_select,
             settings_focus,
             last_bounds: None,
             _subscriptions,
@@ -603,12 +669,29 @@ impl Render for StopwatchApp {
                     );
 
                 actions_div = actions_div
-                    .child(div().h(px(10.)))
                     .child(size_controls)
-                    .child(div().h(px(10.)))
                     .child(opacity_controls)
-                    .child(div().h(px(10.)))
                     .child(font_controls);
+
+                #[cfg(target_os = "linux")]
+                if let Some(keyboard_select) = &self.keyboard_select {
+                    let keyboard_controls = div()
+                        .flex()
+                        .w_full()
+                        .justify_between()
+                        .items_center()
+                        .child(
+                            div()
+                                .text_color(rgb(0xffffff))
+                                .child("Keyboard (Requires Restart)"),
+                        )
+                        .child(
+                            div()
+                                .w(px(400.))
+                                .child(gpui_component::select::Select::new(keyboard_select)),
+                        );
+                    actions_div = actions_div.child(div().h(px(10.))).child(keyboard_controls);
+                }
 
                 Some(
                     div()
