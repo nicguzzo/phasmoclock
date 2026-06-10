@@ -61,5 +61,5 @@ jobs:
         # This action automatically creates the release if it doesn't exist, and attaches the files
         uses: softprops/action-gh-release@v2
         with:
-          files: phasmoclock-
+          files: phasmoclock-*
           generate_release_notes: true
