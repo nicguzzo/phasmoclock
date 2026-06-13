@@ -780,8 +780,8 @@ pub fn make_window_always_on_top() {
         use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
         use windows::Win32::System::Threading::GetCurrentProcessId;
         use windows::Win32::UI::WindowsAndMessaging::{
-            EnumWindows, GetWindowThreadProcessId, HWND_TOPMOST, IsWindowVisible, SWP_NOMOVE,
-            SWP_NOSIZE, SetWindowPos,
+            EnumWindows, GetWindowThreadProcessId, IsWindowVisible, SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE,
+            GetWindowLongW, SetWindowLongW, GWL_STYLE, WS_POPUP, SWP_FRAMECHANGED
         };
 
         unsafe extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -806,7 +806,19 @@ pub fn make_window_always_on_top() {
                     LPARAM(&mut found_hwnd as *mut _ as isize),
                 );
                 if let Some(hwnd) = found_hwnd {
-                    let _ = SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+                    let mut style = GetWindowLongW(hwnd, GWL_STYLE);
+                    style &= !0x00C00000; // WS_CAPTION
+                    style &= !0x00040000; // WS_THICKFRAME
+                    style &= !0x00800000; // WS_BORDER
+                    style |= WS_POPUP.0 as i32;
+                    SetWindowLongW(hwnd, GWL_STYLE, style);
+
+                    let _ = SetWindowPos(
+                        hwnd,
+                        HWND_TOPMOST,
+                        0, 0, 0, 0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED,
+                    );
                     break;
                 }
             }

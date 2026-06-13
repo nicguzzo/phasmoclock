@@ -160,7 +160,7 @@ fn main() {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             window_background: gpui::WindowBackgroundAppearance::Transparent,
             titlebar: None,
-            is_resizable: true,
+            is_resizable: false,
             ..Default::default()
         };
         cx.spawn(|cx: &mut AsyncApp| {
