@@ -33,3 +33,8 @@ Designed for phasmophobia specialized tracking (like calculating in-game ghost s
 
 **For Linux (Ubuntu/Debian) Wayland Users:**
 use always on top on your wayland manager, (winkey+right click)
+## Building in windows
+```
+ export GPUI_FXC_PATH=/c/Program\ Files\ \(x86\)/Windows\ Kits/10/bin/10.0.22621.0/x64/fxc.exe
+ cargo build -r
+``

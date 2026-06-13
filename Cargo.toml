@@ -23,6 +23,7 @@ kbd-evdev = "0.2.0"
 [target.'cfg(target_os = "windows")'.dependencies]
 # This will only compile when building for Windows
 rdev = "0.5.3"
+windows = { version = "0.52.0", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_UI_Input_KeyboardAndMouse"] }
 
 
 [build-dependencies]

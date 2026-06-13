@@ -56,6 +56,9 @@ impl StopwatchApp {
         let stopwatch = cx.new(|_| Stopwatch::new());
         let bpm_tracker = cx.new(|_| BpmTracker::new());
 
+        #[cfg(target_os = "windows")]
+        crate::gui::make_window_always_on_top();
+
         let mut _subscriptions = Vec::new();
         _subscriptions.push(cx.observe(&stopwatch, |_, _, cx| cx.notify()));
         _subscriptions.push(cx.observe(&bpm_tracker, |_, _, cx| cx.notify()));
@@ -528,6 +531,11 @@ impl Render for StopwatchApp {
                                     gpui::MouseButton::Left,
                                     |_event, window, _app| {
                                         //println!("on_mouse_down");
+                                        #[cfg(target_os = "linux")]
+                                        window.start_window_move();
+                                        #[cfg(target_os = "windows")]
+                                        crate::gui::start_window_drag_native();
+                                        #[cfg(not(target_os = "windows"))]
                                         window.start_window_move();
                                     },
                                 )
@@ -585,6 +593,11 @@ impl Render for StopwatchApp {
                                 this.on_mouse_down(
                                     gpui::MouseButton::Left,
                                     |_event, window, _app| {
+                                        #[cfg(target_os = "linux")]
+                                        window.start_window_move();
+                                        #[cfg(target_os = "windows")]
+                                        crate::gui::start_window_drag_native();
+                                        #[cfg(not(target_os = "windows"))]
                                         window.start_window_move();
                                     },
                                 )
@@ -759,6 +772,87 @@ impl Render for StopwatchApp {
     }
 
     //pub fn parse_key(key: Key) -> u16 {}
+}
+
+#[cfg(target_os = "windows")]
+pub fn make_window_always_on_top() {
+    std::thread::spawn(|| {
+        use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+        use windows::Win32::System::Threading::GetCurrentProcessId;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            EnumWindows, GetWindowThreadProcessId, HWND_TOPMOST, IsWindowVisible, SWP_NOMOVE,
+            SWP_NOSIZE, SetWindowPos,
+        };
+
+        unsafe extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            unsafe {
+                let mut process_id = 0;
+                GetWindowThreadProcessId(hwnd, Some(&mut process_id as *mut _));
+                if process_id == GetCurrentProcessId() && IsWindowVisible(hwnd).as_bool() {
+                    let out_hwnd = &mut *(lparam.0 as *mut Option<HWND>);
+                    *out_hwnd = Some(hwnd);
+                    return BOOL(0);
+                }
+                BOOL(1)
+            }
+        }
+
+        for _ in 0..10 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            let mut found_hwnd: Option<HWND> = None;
+            unsafe {
+                let _ = EnumWindows(
+                    Some(enum_window),
+                    LPARAM(&mut found_hwnd as *mut _ as isize),
+                );
+                if let Some(hwnd) = found_hwnd {
+                    let _ = SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+                    break;
+                }
+            }
+        }
+    });
+}
+
+#[cfg(target_os = "windows")]
+pub fn start_window_drag_native() {
+    use windows::Win32::Foundation::{BOOL, HWND, LPARAM, WPARAM};
+    use windows::Win32::System::Threading::GetCurrentProcessId;
+    use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowThreadProcessId, HTCAPTION, IsWindowVisible, PostMessageW,
+        WM_NCLBUTTONDOWN,
+    };
+
+    unsafe extern "system" fn enum_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        unsafe {
+            let mut process_id = 0;
+            GetWindowThreadProcessId(hwnd, Some(&mut process_id as *mut _));
+            if process_id == GetCurrentProcessId() && IsWindowVisible(hwnd).as_bool() {
+                let out_hwnd = &mut *(lparam.0 as *mut Option<HWND>);
+                *out_hwnd = Some(hwnd);
+                return BOOL(0);
+            }
+            BOOL(1)
+        }
+    }
+
+    let mut found_hwnd: Option<HWND> = None;
+    unsafe {
+        let _ = EnumWindows(
+            Some(enum_window),
+            LPARAM(&mut found_hwnd as *mut _ as isize),
+        );
+        if let Some(hwnd) = found_hwnd {
+            let _ = ReleaseCapture();
+            let _ = PostMessageW(
+                hwnd,
+                WM_NCLBUTTONDOWN,
+                WPARAM(HTCAPTION as usize),
+                LPARAM(0),
+            );
+        }
+    }
 }
 
 /*
